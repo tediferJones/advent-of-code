@@ -142,29 +142,94 @@ pathCoordinates.forEach(coordinates => {
 
 // Bun.write('fixedOutput.txt', data.map(line => line.join('') + '\n'))
 
+function isInside(map: string[][], coordinate: number[]) {
+  // start by just checking 4 directions
+  // if there is # any distance away in all 4 directions, return true
+  const [row, col] = coordinate;
+  const exists: { [key: string]: Function } = {
+    up: (map: string[][], coordinate: number[]) => {
+      // Check every row above (less than) specified index
+      if (row - 1 < 0) return false
+      return [...Array(row - 1).keys()]
+        .some(i => map[i][col] === '#')
+    },
+    down: (map: string[][], coordinate: number[]) => {
+      return [...Array(map.length - row - 1).keys()]
+        .map(i => i + row)
+        .some(i => map[i][col] === '#')
+    },
+    left: (map: string[][], coordinate: number[]) => {
+      if (col - 1 < 0) return false
+      return [...Array(col - 1).keys()]
+        .reverse() // so it actually checks in the right order
+        .some(i => map[row][i] === '#')
+    },
+    right: (map: string[][], coordinate: number[]) => {
+      return [...Array(map[0].length - col - 1).keys()]
+        .some(i => map[i][col] === '#')
+    },
+    // CHECK FOR DIAGANOLS TOO
+  }
+
+  for (const key in exists) {
+    if (!exists[key](map, coordinate)) {
+      return false
+    }
+  }
+
+  return true
+}
+
 let matchCount = 0;
 let area = 0;
-// [ ...data.map(line => line.join('')).join('').matchAll(/#[\.FJL7|-]+#/g)].map(match => {
-//   console.log(match)
-//   const length = match[0].length - 2
-//   area += length
-//   matchCount++
-//   // console.log(match)
+// data.forEach((line, i) => {
+//   // console.log(line.join(''))
+//     console.log('########')
+//   if (i < 15 || i > 130) return
+//   const string = line.join('');
+//   [...string.matchAll(/#[^#]+#/g)].map(match => {
+//     console.log(match, i)
+//     // area += match
+//     matchCount++
+//     area += match[0].length - 2
+//   })
 // })
-data.forEach(line => {
-  // console.log(line.join(''))
-    console.log('########')
-  const string = line.join('');
-  [...string.matchAll(/#[\.FJL7|-]+#/g)].map(match => {
-    console.log(match)
-    // area += match
-    matchCount++
-    area += match[0].length - 2
+
+// for (const line,i  of data) {
+//   for (const char of line) {
+//     if (char !== '#' && isInside()) {
+//       console.log('ITS INSIDE THE PIPES')
+//     }
+//   }
+// }
+let counter = 0;
+// let totalChars = 0;
+const pairs: number[][] = []
+data.forEach((line, y) => {
+  line.forEach((char, x) => {
+    if (char !== '#' && isInside(data, [y, x])) {
+      counter++
+      pairs.push([y, x])
+    }
+    // totalChars++
   })
 })
-console.log('ANSWER')
-console.log(matchCount)
-console.log('AREA', area)
+console.log(pairs)
+// console.log('Total Chars: ', totalChars)
+// YOU COULD USE THIS DATA TO WRITE A NEW FILE
+// WITH ALL THESE POSITIONS CHANGED TO *
+// Then we can see what is catching and what it isnt
+// pairs.forEach(pair => {
+//   data[pair[0]][pair[1]] = ' '
+// })
+// Bun.write('fixedOutputV2.txt', data.map(line => line.join('') + '\n'));
+
+console.log('TESTING: ', counter)
+
+// console.log('ANSWER')
+// console.log(matchCount)
+// console.log('AREA', area)
+// console.log(data)
 
 // console.log(startPos)
 // TOTAL EXCEPT CENTER = 35
