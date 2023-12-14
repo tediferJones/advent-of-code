@@ -10,90 +10,112 @@ function removeUsed(row: string[], finalPattern: number[]) {
   // If known bad starts with one
 }
 
-function checkAround(str: string[], i: num) {
+function checkAround(str: string[], i: number) {
 
 }
 
-function isValid(
-  row: string[], 
-  finalPattern: number[], 
-  strIndex: number = 0, 
-  badIndex: number = 0,
-  counter: number = 0
-) {
-  // Check if the groups are correct
-  // console.log('checking', strIndex)
-  // console.log('string', row)
-  if (counter === finalPattern[badIndex]) {
-    // console.log('FINISHED SEQUENCE', ' at string index ', strIndex)
-    counter = 0;
-    badIndex++
-  }
-  // console.log('final pos', badIndex)
-  if (badIndex === finalPattern.length) {
-    // console.log('THIS IS VALID: ', row, finalPattern)
-    return true
-  }
-  if (badIndex === Infinity) {
-    return false;
-  }
-  if (strIndex < row.length && badIndex < finalPattern.length) {
-    // if (row[strIndex] === '#') {
-    // console.log('checking char', row[strIndex])
-    if (row[strIndex] === '#' && (() => {
-      const [prev, next] = [row[strIndex - 1], row[strIndex + 1]];
-      // console.log('CHECKING SURROUNDING CHARACTERS')
-      // console.log(prev, next)
-      // console.log(counter + 1, ' of ', finalPattern[badIndex])
-      if (0 < counter && counter + 1 < finalPattern[badIndex]) {
-        // console.log('mid')
-        // return next === '#' && prev === '#'
-        if (next === '#' && prev === '#') {
-          return true
-        } else {
-          return badIndex = Infinity;
-        }
-      }
-      if (counter === 0) {
-        // console.log('start',
-        //   (prev === undefined || prev === '.'),
-        //   (finalPattern[badIndex] > 1 ? next === '#' : true)
-        // )
-        // return (prev === undefined || prev === '.') && 
-        //   (finalPattern[badIndex] > 1 ? next === '#' : true)
-        if (
-          (prev === undefined || prev === '.') && 
-            (finalPattern[badIndex] > 1 ? next === '#' : true)
-        ) {
-          return true
-        } else {
-          return badIndex = Infinity
-        }
-      }
-      if (counter + 1 === finalPattern[badIndex]) {
-        // console.log('end')
-        // return (next === undefined || next === '.') && 
-        //   (finalPattern[badIndex] > 1 ? prev === '#' : true)
-        if (
-          (next === undefined || next === '.') && 
-            (finalPattern[badIndex] > 1 ? prev === '#' : true)
-        ) {
-          return true
-        } else {
-          return  badIndex = Infinity
-        }
-      }
-      // console.log('FALSE')
-      return false
-    })()) {
-      counter++
-      // return isValid(row, finalPattern, strIndex, badIndex, counter)
-    }
-    strIndex++
-    return isValid(row, finalPattern, strIndex, badIndex, counter)
-  }
-  return false
+function isValidV2(row: string[], finalPattern: number[]) {
+  let i = 0;
+  const idk = row.join('')
+    .split(/\.+/)
+    .filter(notEmpty => notEmpty)
+    .map(str => str.length)
+    .map((idk, i) => idk === finalPattern[i])
+    // .every((num, i) => num === finalPattern[i])
+    // .every(num => {
+    //   if (num === finalPattern[i]) {
+    //     i++
+    //     return true
+    //   }
+    // })
+  // if (idk) console.log('is valid \n', row, '\n', idk)
+  // console.log(i, finalPattern)
+  // console.log(idk)
+  return idk.length === finalPattern.length && !idk.includes(false)
+  // return i === finalPattern.length
+  // return true
 }
+
+// function isValid(
+//   row: string[], 
+//   finalPattern: number[], 
+//   strIndex: number = 0, 
+//   badIndex: number = 0,
+//   counter: number = 0
+// ) {
+//   // Check if the groups are correct
+//   // console.log('checking', strIndex)
+//   // console.log('string', row)
+//   if (counter === finalPattern[badIndex]) {
+//     // console.log('FINISHED SEQUENCE', ' at string index ', strIndex)
+//     counter = 0;
+//     badIndex++
+//   }
+//   // console.log('final pos', badIndex)
+//   if (badIndex === finalPattern.length) {
+//     // console.log('THIS IS VALID: ', row, finalPattern)
+//     return true
+//   }
+//   if (badIndex === Infinity) {
+//     return false;
+//   }
+//   if (strIndex < row.length && badIndex < finalPattern.length) {
+//     // if (row[strIndex] === '#') {
+//     // console.log('checking char', row[strIndex])
+//     if (row[strIndex] === '#' && (() => {
+//       const [prev, next] = [row[strIndex - 1], row[strIndex + 1]];
+//       // console.log('CHECKING SURROUNDING CHARACTERS')
+//       // console.log(prev, next)
+//       // console.log(counter + 1, ' of ', finalPattern[badIndex])
+//       if (0 < counter && counter + 1 < finalPattern[badIndex]) {
+//         // console.log('mid')
+//         // return next === '#' && prev === '#'
+//         if (next === '#' && prev === '#') {
+//           return true
+//         } else {
+//           return badIndex = Infinity;
+//         }
+//       }
+//       if (counter === 0) {
+//         // console.log('start',
+//         //   (prev === undefined || prev === '.'),
+//         //   (finalPattern[badIndex] > 1 ? next === '#' : true)
+//         // )
+//         // return (prev === undefined || prev === '.') && 
+//         //   (finalPattern[badIndex] > 1 ? next === '#' : true)
+//         if (
+//           (prev === undefined || prev === '.') && 
+//             (finalPattern[badIndex] > 1 ? next === '#' : true)
+//         ) {
+//           return true
+//         } else {
+//           return badIndex = Infinity
+//         }
+//       }
+//       if (counter + 1 === finalPattern[badIndex]) {
+//         // console.log('end')
+//         // return (next === undefined || next === '.') && 
+//         //   (finalPattern[badIndex] > 1 ? prev === '#' : true)
+//         if (
+//           (next === undefined || next === '.') && 
+//             (finalPattern[badIndex] > 1 ? prev === '#' : true)
+//         ) {
+//           return true
+//         } else {
+//           return  badIndex = Infinity
+//         }
+//       }
+//       // console.log('FALSE')
+//       return false
+//     })()) {
+//       counter++
+//       // return isValid(row, finalPattern, strIndex, badIndex, counter)
+//     }
+//     strIndex++
+//     return isValid(row, finalPattern, strIndex, badIndex, counter)
+//   }
+//   return false
+// }
 
 // idk maybe
 function generateCombinations(arr: number[]) {
@@ -119,13 +141,13 @@ function generateCombinations(arr: number[]) {
 // console.log(allCombinations);
 
 
-const string = '#.#.###'.split('');
-// const string = '???.###'.split('');
-const pattern = '1,1,3'.split(',').map(str => Number(str))
-// console.log(string.join(''), pattern)
-console.log(
-  isValid(string, pattern)
-)
+// const string = '#.#.###'.split('');
+// // const string = '???.###'.split('');
+// const pattern = '1,1,3'.split(',').map(str => Number(str))
+// // console.log(string.join(''), pattern)
+// console.log(
+//   isValid(string, pattern)
+// )
 // console.log(getUnknownIndices(string))
 
 // If the pattern checker works
@@ -156,11 +178,13 @@ function getAllCombos(row: string[], finalPattern: number[]) {
   combos.forEach(combo => {
     // console.log('#################################')
     const copy = recCopy(row, combo).map(char => char === '?' ? '.' : char);
-    const validity = isValid(copy, finalPattern)
+    const validity = isValidV2(copy, finalPattern)
     // console.log(combo)
     // console.log(copy)
     // console.log(validity)
     if (validity) {
+      // console.log('THIS IS VALID')
+      // console.log(copy)
       // console.log('THAT SHIT IS VALID')
       total++
     }
@@ -188,13 +212,15 @@ function getAllCombos(row: string[], finalPattern: number[]) {
 // ? = unknown
 
 // Get the total count of every possible combination
-(await Bun.file('example.txt').text())
+let count = 0;
+(await Bun.file('inputs.txt').text())
   .split(/\n/)
   .filter(line => line)
   .forEach(line => {
   // .some(line => {
     const [row, finalPattern] = line.split(/\s+/);
-    console.log(getAllCombos(row.split(''), finalPattern.split(',').map(str => Number(str))))
+    const comboCount = getAllCombos(row.split(''), finalPattern.split(',').map(str => Number(str)))
+    count += comboCount
     return true
     // console.log(row);
     // console.log(finalPattern)
@@ -219,3 +245,4 @@ function getAllCombos(row: string[], finalPattern: number[]) {
     //     .map(str => Number(str))
     // )
   })
+console.log(count)
