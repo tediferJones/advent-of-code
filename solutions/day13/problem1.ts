@@ -4,7 +4,10 @@
 
 function rotateArray(lines: string[]) {
   const result = [...Array(lines[0].length).keys()].map(i => {
-    return lines.map(line => line[i]).join('')
+    // return lines.map(line => line[i]).join('')
+    // TESTING
+    // THIS SEEMS BETTER BUT IDK
+    return lines.map(line => line[i]).toReversed().join('')
   })
   // console.log(result)
   return result;
@@ -88,46 +91,46 @@ function gcfOld(lines: string[]) {
   }
 }
 
-function getReflectionCount(lines: string[]) {
-  // const rowMax = lines.length;
-  // const colMax = lines[0].length;
-  // console.log(rowMax, colMax)
-
-  // let split = 1;
-  // let checkLength = 1;
-  const lineLength = lines[0].length;
-  const maxLength = Math.floor(lines[0].length / 2)
-  const line = lines[0]
-
-  // NEW
-  const left = line.slice(0, maxLength)
-  const right = line.slice(maxLength, maxLength * 2)
-  // console.log('FIRST SLICE', left, right)
-  if ((left === right.split('').reverse().join(''))) {
-    // console.log('CHECKING ALL LINES')
-    if (validOnAllLines(lines, maxLength)) {
-      // console.log("THATS A FULL FUCKING MATCH")
-      return maxLength
-    }
-  }
-
-  if (lines[0].length % 2 !== 0) {
-    const left = line.slice(1, maxLength + 1)
-    const right = line.slice(maxLength + 1, (maxLength * 2) + 1)
-    // console.log('SECOND SLICE', left, right)
-    if ((left === right.split('').reverse().join(''))) {
-      // console.log('CHECKING ALL LINES')
-      if (validOnAllLines(lines, maxLength, true)) {
-        // console.log("THATS A FULL FUCKING MATCH FROM SECOND SLICE")
-        return maxLength + 1
-      }
-    }
-  }
-  return 0
-
-  // console.log('max length', maxLength)
-  // console.log('DONE')
-}
+// function getReflectionCount(lines: string[]) {
+//   // const rowMax = lines.length;
+//   // const colMax = lines[0].length;
+//   // console.log(rowMax, colMax)
+// 
+//   // let split = 1;
+//   // let checkLength = 1;
+//   const lineLength = lines[0].length;
+//   const maxLength = Math.floor(lines[0].length / 2)
+//   const line = lines[0]
+// 
+//   // NEW
+//   const left = line.slice(0, maxLength)
+//   const right = line.slice(maxLength, maxLength * 2)
+//   // console.log('FIRST SLICE', left, right)
+//   if ((left === right.split('').reverse().join(''))) {
+//     // console.log('CHECKING ALL LINES')
+//     if (validOnAllLines(lines, maxLength)) {
+//       // console.log("THATS A FULL FUCKING MATCH")
+//       return maxLength
+//     }
+//   }
+// 
+//   if (lines[0].length % 2 !== 0) {
+//     const left = line.slice(1, maxLength + 1)
+//     const right = line.slice(maxLength + 1, (maxLength * 2) + 1)
+//     // console.log('SECOND SLICE', left, right)
+//     if ((left === right.split('').reverse().join(''))) {
+//       // console.log('CHECKING ALL LINES')
+//       if (validOnAllLines(lines, maxLength, true)) {
+//         // console.log("THATS A FULL FUCKING MATCH FROM SECOND SLICE")
+//         return maxLength + 1
+//       }
+//     }
+//   }
+//   return 0
+// 
+//   // console.log('max length', maxLength)
+//   // console.log('DONE')
+// }
 console.log('TESTING')
 // getReflectionCount(['123456'])
 // getReflectionCount(['#.##..##.'])
@@ -193,6 +196,12 @@ for (const table of tables) {
   // Use this information to scan until we confirm its not a reflection
 }
 console.log('answer', total)
+
+console.log(rotateArray([
+  '123',
+  '456',
+  '789',
+]))
 
 // ALSO WRONG:
 // 37421
