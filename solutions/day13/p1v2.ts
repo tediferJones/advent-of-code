@@ -337,12 +337,16 @@ for (const table of tables) {
     // console.log(result)
   }
 
-  const rotatedArray = rotateArray(lines);
+  const rotatedArray = rotateArray(lines).toReversed();
   for (let i = 1; i < rotatedArray[0].length; i++) {
     // console.log('CHECKING SPLIT ', i)
     const foundSplit = scanLine(rotatedArray, i)
     // console.log(foundSplit)
     if (foundSplit.size && foundSplit.splitNum) {
+      // @ts-ignore
+      foundSplit.horizontal = true;
+
+      foundSplit.splitNum = rotatedArray[0].length - foundSplit.splitNum
       allResults.push(foundSplit)
       counter++
     }
@@ -365,18 +369,18 @@ for (const table of tables) {
     console.log('MAP NUMBER: ', iterCounter)
     console.log(allResults)
 
-    // let temp = 0;
-    // allResults.forEach(test => {
-    //   // const length = lines[0].length;
-    //   const length = test.horizontal ? lines.length : lines[0].length;
-    //   // if (Math.abs(length / 2 - test.splitNum) > temp) {
-    //   if (test.splitNum - (test.size / 2) === 0 || test.splitNum + (test.size / 2) === length) {
-    //     temp = Math.abs(length / 2 - test.splitNum)
-    //     console.log('OUT OF ALL OPTIONS THIS ONE IS CLOSEST TO THE EDGE')
-    //     console.log(test)
-    //     result = test
-    //   }
-    // })
+    let temp = 0;
+    allResults.forEach(test => {
+      // const length = lines[0].length;
+      const length = test.horizontal ? lines.length : lines[0].length;
+      // if (Math.abs(length / 2 - test.splitNum) > temp) {
+      if (test.splitNum - (test.size / 2) === 0 || test.splitNum + (test.size / 2) === length) {
+        temp = Math.abs(length / 2 - test.splitNum)
+        console.log('OUT OF ALL OPTIONS THIS ONE IS CLOSEST TO THE EDGE')
+        console.log(test)
+        result = test
+      }
+    })
   }
   // GET THE SPLIT NUMBER THAT IS CLOSEST TO EITHER END
 
@@ -418,6 +422,9 @@ for (const table of tables) {
   // Use this information to scan until we confirm its not a reflection
 }
 console.log('answer', total)
+console.log(total === 29130)
+
+// ANSWER PART 1: 29130
 
 // console.log(rotateArray([
 //   '123',
