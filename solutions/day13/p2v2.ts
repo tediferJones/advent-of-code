@@ -18,8 +18,9 @@ function rotateArray(lines: string[]) {
 //   '789',
 // ])
 
-function validOnAllLines(lines: string[], start: number, mid: number, end: number) {
-  let smudgeCounter = 0;
+// function validOnAllLines(lines: string[], start: number, mid: number, end: number) {
+function validOnAllLines(lines: string[], start: number, mid: number, end: number, smudgeCounter: number = 0) {
+  // let smudgeCounter = 0;
   const res = lines.every(line => {
     const left = line.slice(start, mid)
     const right = line.slice(mid, end)
@@ -147,8 +148,9 @@ function scanForSym(lines: string[]) {
     const right = line.slice(mid, end)
     if (left === right.split('').toReversed().join('')) {
       const { status, isSmudge } = validOnAllLines(lines, start, mid, end)
-      // const { status, isSmudge } = validOnAllLines(lines, start, mid, end)
       if (status) {
+      // const smudgeCounter = (left === right.split('').toReversed().join('') ? 0: 1)
+      // const { status, isSmudge } = validOnAllLines(lines, start, mid, end, smudgeCounter)
       // if (status && isSmudge) {
         return {
           splitNum: i,
