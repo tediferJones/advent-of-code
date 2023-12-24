@@ -128,17 +128,3 @@ console.log(total)
 
 // ANSWER PART 1: 426
 // ANSWER PART 2: 61920
-
-// for each block, slice that block from map, and see if the array could fall
-// if it can't fall, total + 1
-
-// console.log(map)
-// fall(map)
-// console.log(map)
-// fall(map)
-// console.log(map)
-// fall(map)
-// console.log(map)
-// fall(map)
-// console.log(map)
-
