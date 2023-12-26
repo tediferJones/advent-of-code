@@ -43,8 +43,12 @@ function walkOnce(
     for (let i = 0; i < paths.length; i++) {
       // const [row, col, stepCount, path] = paths[i][paths[i].length - 1];
       const { row, col, stepCount, /*seen,*/ intersections } = paths[i];
+      console.log('MAKING MOVES')
       if (row === end[0] && col === end[1]) {
         console.log('END POINT')
+        paths[i].intersections.push({
+          row, col, stepCount, intersections: []
+        })
         answers.push(paths[i])
         continue
       }
@@ -70,6 +74,13 @@ function walkOnce(
             console.log('NEXT POS IS LOOP')
             // intersections.push([newY, newX])
             console.log(intersections)
+            // intersections.push({
+            //   row: newY,
+            //   col: newX,
+            //   stepCount: stepCount,
+            //   intersections: ['DEAD END']
+            // })
+            return
           }
         }
 
@@ -83,22 +94,44 @@ function walkOnce(
             col: newX,
             stepCount: stepCount + 1
           })
+          // const newSeen = JSON.parse(JSON.stringify(seen))
           counter++
           newPaths.push({
             row: newY,
             col: newX,
-            stepCount: stepCount + 1,
+            // stepCount: stepCount + 1,
+            stepCount: split ? 0 : stepCount + 1,
             intersections: split ? intCopy : intersections,
+            // seen: newSeen,
           })
         }
       });
       if (counter === 0) {
         console.log('DEAD END, no moves to make')
+        answers.push(paths[i])
       }
     }
     paths = newPaths;
   }
   return answers;
+}
+
+interface Cursor {
+  row: number,
+  col: number,
+  stepCount: number,
+  dir: number[],
+}
+function findIntersection(
+  map: string[][], 
+  pos: Cursor,
+  end: number[],
+) {
+  while (isSurrounded(map, pos.row, pos.col) === 2) {
+    const { row, col, dir } = pos;
+    const [dy, dx] = dir;
+    const [newY, newX] = [row + dy, col + dx]
+  }
 }
 
 const map = (await Bun.file('example.txt').text())
@@ -126,7 +159,14 @@ const test = walkOnce(map, [{
   stepCount: 0,
   intersections: [],
 }], end)
-console.log(test)
+// console.log(test)
+test.forEach(result => {
+  const { row, col, stepCount, intersections, seen } = result;
+  console.log('FINAL POS', [row, col])
+  console.log('STEPCOUNT: ', stepCount)
+  console.log('ROUTE', intersections)
+})
+console.log(test.length)
 
 // const answer = longWalkV2(map, [{
 //   row: start[0],
@@ -136,3 +176,41 @@ console.log(test)
 // }], end)
 // console.log(answer)
 // console.log(answer === 2254 || answer === 94)
+
+// NEW PLAN
+// find all intersection points
+// write a function that takes an intersection, and crawls in every direction until it reaches another point
+// If a point is connected to 3 other intersections, it should return an array containing the locations of each new intersection and the step count
+// Once we know what intersections connect to which other intersections
+// We just need to do some magic to determine the longest path that doesnt cross the same itersection more than once
+
+// GRAPH STRUCTURE
+// start: [[5, 3]]
+// [5, 3]: [[13, 5], [3, 11]]
+// [13, 5]: [[13, 13], [19, 3]]
+// [3, 11]: [[13, 13], [11, 21]]
+// [13, 13]: 
+
+// #.#####################
+// #.......#########...###
+// #######.#########.#.###
+// ###.....#.>.>.###.#.###
+// ###v#####.#v#.###.#.###
+// ###.>...#.#.#.....#...#
+// ###v###.#.#.#########.#
+// ###...#.#.#.......#...#
+// #####.#.#.#######.#.###
+// #.....#.#.#.......#...#
+// #.#####.#.#.#########v#
+// #.#...#...#...###...>.#
+// #.#.#v#######v###.###v#
+// #...#.>.#...>.>.#.###.#
+// #####v#.#.###v#.#.###.#
+// #.....#...#...#.#.#...#
+// #.#########.###.#.#.###
+// #...###...#...#...#.###
+// ###.###.#.###v#####v###
+// #...#...#.#.>.>.#.>.###
+// #.###.###.#.###.#.#v###
+// #.....###...###...#...#
+// #####################.#
