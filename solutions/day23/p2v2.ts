@@ -125,13 +125,18 @@ interface Cursor {
 function findIntersection(
   map: string[][], 
   pos: Cursor,
-  end: number[],
+  intersections: number[][],
 ) {
-  while (isSurrounded(map, pos.row, pos.col) === 2) {
-    const { row, col, dir } = pos;
-    const [dy, dx] = dir;
-    const [newY, newX] = [row + dy, col + dx]
-  }
+  // while (isSurrounded(map, pos.row, pos.col) === 2) {
+  //   const { row, col, dir } = pos;
+  //   const [dy, dx] = dir;
+  //   const [newY, newX] = [row + dy, col + dx]
+  // }
+  const nextIntersections: Cursor[] = [];
+  const newPositions: Cursor[] = [];
+  Object.values(dirs).forEach(dir => {
+
+  })
 }
 
 const map = (await Bun.file('example.txt').text())
