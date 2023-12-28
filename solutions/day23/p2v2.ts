@@ -137,6 +137,7 @@ function findIntersection(
   Object.values(dirs).forEach(dir => {
 
   })
+  // too sick, brain hurts, cant think
 }
 
 const map = (await Bun.file('example.txt').text())
