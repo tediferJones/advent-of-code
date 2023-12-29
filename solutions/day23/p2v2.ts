@@ -27,23 +27,20 @@ function isSurrounded(map: string[][], row: number, col: number) {
 
 function walkOnce(
   map: string[][],
-  // paths: number[][][],
   paths: QueueItem[],
-  // seen: string[],
   end: number[],
   answers: QueueItem[] = [],
   seen: string[] = [],
-  // intersections: number[][],
+  // answersV2: Map<number[], number[]> = new Map(),
+  answersV2: { [key: string]: number[][] } = {},
 ) {
+  // add start pos to seen positions
+  seen.push(JSON.stringify([paths[0].row, paths[0].col]))
   while (paths.length > 0) {
-    // console.log('WHILE LOOP')
-    // console.log(paths)
     const newPaths: QueueItem[] = []
-    // console.log('CHECKING PATHS: ', paths.length)
     for (let i = 0; i < paths.length; i++) {
-      // const [row, col, stepCount, path] = paths[i][paths[i].length - 1];
       const { row, col, stepCount, /*seen,*/ intersections } = paths[i];
-      console.log('MAKING MOVES')
+      // console.log('MAKING MOVES')
       if (row === end[0] && col === end[1]) {
         console.log('END POINT')
         paths[i].intersections.push({
@@ -52,10 +49,7 @@ function walkOnce(
         answers.push(paths[i])
         continue
       }
-      // const surroundCount = isSurrounded(map, row, col)
-      // if (surroundCount < 2) {
-      //   intersections.push([row, col])
-      // }
+
       let counter = 0;
       Object.values(dirs).forEach(dir => {
         const [dy, dx] = dir;
@@ -66,24 +60,37 @@ function walkOnce(
         const newSurroundCount = isSurrounded(map, newY, newX)
         let split = false;
         if (newSurroundCount < 2) {
-          // console.log('NEXT POS IS INTERSECTION')
-          // console.log([newY, newX])
-          // console.log(paths[i])
+          // IF SURROUND COUNT < 2, POSITION IS AN INTERSECTION
           split = true;
+
+          // TESTING
+          const newInfo = intersections[intersections.length - 1];
+          const str = JSON.stringify([newY, newX]);
+          console.log(str, newInfo)
+          if (answersV2[str]) {
+            answersV2[str].push([newInfo.row, newInfo.col, newInfo.stepCount])
+          } else {
+            answersV2[str] = [
+              // [newInfo.row, newInfo.col, newInfo.stepCount]
+              // [newY, newX, stepCount]
+            ]
+          }
+          // const existingRecords = answersV2.get([newY, newX])
+          // if (existingRecords) {
+          //   console.log('adding to map')
+          //   answersV2.set([newY, newX], existingRecords.concat([newY, newX]))
+          // } else {
+          //   console.log('NEW MAP LOCATION')
+          //   console.log(existingRecords)
+          //   console.log(answersV2)
+          //   answersV2.set([newY, newX], [])
+          // }
+
           if (seen.includes(JSON.stringify([newY, newX]))) {
-            console.log('NEXT POS IS LOOP')
-            // intersections.push([newY, newX])
-            console.log(intersections)
-            // intersections.push({
-            //   row: newY,
-            //   col: newX,
-            //   stepCount: stepCount,
-            //   intersections: ['DEAD END']
-            // })
+            // If nextPos is an intersection we have already seen, continue
             return
           }
         }
-
 
         if (map[newY][newX] !== '#' && !seen.includes(JSON.stringify([newY, newX]))) {
           seen.push(JSON.stringify([newY, newX]))
@@ -94,15 +101,12 @@ function walkOnce(
             col: newX,
             stepCount: stepCount + 1
           })
-          // const newSeen = JSON.parse(JSON.stringify(seen))
           counter++
           newPaths.push({
             row: newY,
             col: newX,
-            // stepCount: stepCount + 1,
             stepCount: split ? 0 : stepCount + 1,
             intersections: split ? intCopy : intersections,
-            // seen: newSeen,
           })
         }
       });
@@ -113,32 +117,33 @@ function walkOnce(
     }
     paths = newPaths;
   }
-  return answers;
+  // return answers;
+  return { answers, answersV2 };
 }
 
-interface Cursor {
-  row: number,
-  col: number,
-  stepCount: number,
-  dir: number[],
-}
-function findIntersection(
-  map: string[][], 
-  pos: Cursor,
-  intersections: number[][],
-) {
-  // while (isSurrounded(map, pos.row, pos.col) === 2) {
-  //   const { row, col, dir } = pos;
-  //   const [dy, dx] = dir;
-  //   const [newY, newX] = [row + dy, col + dx]
-  // }
-  const nextIntersections: Cursor[] = [];
-  const newPositions: Cursor[] = [];
-  Object.values(dirs).forEach(dir => {
-
-  })
-  // too sick, brain hurts, cant think
-}
+// interface Cursor {
+//   row: number,
+//   col: number,
+//   stepCount: number,
+//   dir: number[],
+// }
+// function findIntersection(
+//   map: string[][], 
+//   pos: Cursor,
+//   intersections: number[][],
+// ) {
+//   // while (isSurrounded(map, pos.row, pos.col) === 2) {
+//   //   const { row, col, dir } = pos;
+//   //   const [dy, dx] = dir;
+//   //   const [newY, newX] = [row + dy, col + dx]
+//   // }
+//   const nextIntersections: Cursor[] = [];
+//   const newPositions: Cursor[] = [];
+//   Object.values(dirs).forEach(dir => {
+// 
+//   })
+//   // too sick, brain hurts, cant think
+// }
 
 const map = (await Bun.file('example.txt').text())
 // const map = (await Bun.file('inputs.txt').text())
@@ -148,16 +153,16 @@ const map = (await Bun.file('example.txt').text())
 
 const start = [0, map[0].join('').indexOf('.'), 0];
 const end = [map.length - 1, map[map.length - 1].join('').indexOf('.')]
-const intersections: number[][] = [];
-map.forEach((row, y) => {
-  row.forEach((char, x) => {
-    const hashCount = isSurrounded(map, y, x)
-    if (hashCount < 2) {
-      intersections.push([y, x])
-    }
-  })
-})
-intersections.forEach(arr => console.log(arr))
+// const intersections: number[][] = [];
+// map.forEach((row, y) => {
+//   row.forEach((char, x) => {
+//     const hashCount = isSurrounded(map, y, x)
+//     if (hashCount < 2) {
+//       intersections.push([y, x])
+//     }
+//   })
+// })
+// intersections.forEach(arr => console.log(arr))
 const test = walkOnce(map, [{
   row: start[0],
   col: start[1],
@@ -166,13 +171,16 @@ const test = walkOnce(map, [{
   intersections: [],
 }], end)
 // console.log(test)
-test.forEach(result => {
-  const { row, col, stepCount, intersections, seen } = result;
-  console.log('FINAL POS', [row, col])
-  console.log('STEPCOUNT: ', stepCount)
-  console.log('ROUTE', intersections)
-})
-console.log(test.length)
+console.log('\n\n\nMAP HAS BEEN WALKED\n\n\n')
+// console.log(test)
+// test.answers.forEach(result => {
+//   const { row, col, stepCount, intersections, seen } = result;
+//   console.log('FINAL POS', [row, col])
+//   console.log('STEPCOUNT: ', stepCount)
+//   console.log('ROUTE', intersections)
+// })
+console.log(test.answersV2)
+// console.log(test.length)
 
 // const answer = longWalkV2(map, [{
 //   row: start[0],
