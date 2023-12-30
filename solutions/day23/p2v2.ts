@@ -64,17 +64,17 @@ function walkOnce(
           split = true;
 
           // TESTING
-          const newInfo = intersections[intersections.length - 1];
-          const str = JSON.stringify([newY, newX]);
-          console.log(str, newInfo)
-          if (answersV2[str]) {
-            answersV2[str].push([newInfo.row, newInfo.col, newInfo.stepCount])
-          } else {
-            answersV2[str] = [
-              // [newInfo.row, newInfo.col, newInfo.stepCount]
-              // [newY, newX, stepCount]
-            ]
-          }
+          // const newInfo = intersections[intersections.length - 1];
+          // const str = JSON.stringify([newY, newX]);
+          // console.log(str, newInfo)
+          // if (answersV2[str]) {
+          //   answersV2[str].push([newInfo.row, newInfo.col, newInfo.stepCount])
+          // } else {
+          //   answersV2[str] = [
+          //     // [newInfo.row, newInfo.col, newInfo.stepCount]
+          //     // [newY, newX, stepCount]
+          //   ]
+          // }
           // const existingRecords = answersV2.get([newY, newX])
           // if (existingRecords) {
           //   console.log('adding to map')
@@ -173,12 +173,13 @@ const test = walkOnce(map, [{
 // console.log(test)
 console.log('\n\n\nMAP HAS BEEN WALKED\n\n\n')
 // console.log(test)
-// test.answers.forEach(result => {
-//   const { row, col, stepCount, intersections, seen } = result;
-//   console.log('FINAL POS', [row, col])
-//   console.log('STEPCOUNT: ', stepCount)
-//   console.log('ROUTE', intersections)
-// })
+test.answers.forEach(result => {
+  const { row, col, stepCount, intersections, seen } = result;
+  console.log('FINAL POS', [row, col])
+  console.log('STEPCOUNT: ', stepCount)
+  console.log('ROUTE', intersections)
+})
+// console.log(test.answers)
 console.log(test.answersV2)
 // console.log(test.length)
 
