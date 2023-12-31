@@ -1,4 +1,19 @@
+interface Table { [key: string]: number[][] }
+
+const startTime = Date.now();
 const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+
+function findIntersections(map: string[][]) {
+  const intersections: number[][] = [];
+  map.forEach((row, y) => {
+    row.forEach((char, x) => {
+      if (char !== '#' && getHashCount(map, y, x) < 2) {
+        intersections.push([y, x]);
+      }
+    })
+  })
+  return intersections;
+}
 
 function getHashCount(map: string[][], row: number, col: number) {
   const start = [0, map[0].join('').indexOf('.'), 0];
@@ -29,10 +44,7 @@ function connections(map: string[][], row: number, col: number): number[][] {
     }
   }
 
-  // console.log('STARTING POSITIONS')
-  // console.log(test)
   for (const cursor of test) {
-    if (cursor === undefined) throw Error('Cursor Not Found')
     let [row, col, stepCount] = cursor;
     while (getHashCount(map, row, col) === 2) {
       for (const dir of dirs) {
@@ -51,104 +63,43 @@ function connections(map: string[][], row: number, col: number): number[][] {
     }
     nextIntersections.push([row, col, stepCount])
   }
-
   return nextIntersections
 }
 
-interface Path {
-  row: number,
-  col: number,
-  stepCount: number,
-  seen: string[],
-}
-
-function findAllPaths(table: Table, start: number[], end: number[]) {
-  // Seen needs to be independent for each possible path
-  const seen = [JSON.stringify([start[0], start[1]])]
-  // let paths = [ [start[0], start[1], 0] ];
-  let paths: Path[] = [{
-    row: start[0],
-    col: start[1],
-    stepCount: 0,
-    seen: [JSON.stringify([start[0], start[1]])],
-  }]
-  const answers: number[][] = []
-  while (paths.length) {
-    // console.log(paths)
-    const newPaths: Path[] = []
-    for (const path of paths) {
-      // const [row, col, stepCount] = path;
-      const { row, col, stepCount, seen } = path;
-      // console.log(JSON.stringify([row, col]))
-      const newSeen = JSON.parse(JSON.stringify(seen))
-      const nextPositions = table[JSON.stringify([row, col])];
-      // seen.push(JSON.stringify([row, col]))
-      // newSeen.push(JSON.stringify([row, col]))
-      nextPositions.forEach(pos => {
-        const [nextRow, nextCol, nextStepCount] = pos;
-        if (nextRow === end[0] && nextCol === end[1]) {
-          // console.log('FOUND END POSITION')
-          answers.push([nextRow, nextCol, stepCount + nextStepCount])
-          return
-        }
-        if (!seen.includes(JSON.stringify([nextRow, nextCol]))) {
-          newPaths.push({
-            row: nextRow,
-            col: nextCol,
-            stepCount: stepCount + nextStepCount,
-            seen: newSeen.concat(JSON.stringify([nextRow, nextCol])) // newSeen,
-          })
-          // newPaths.push([nextRow, nextCol, stepCount + nextStepCount])
-          // seen.push(JSON.stringify([nextRow, nextCol]))
-        }
-      })
+function dfsV2(
+  table: Table,
+  pos: number[],
+  [endRow, endCol]: number[],
+  seen: string[] = []
+) {
+  const [row, col] = pos;
+  if (row === endRow && col === endCol) return 0;
+  let totalStepCount = -Infinity;
+  table[[row, col].join()].forEach(nextPos => {
+    const [nextRow, nextCol, stepCount] = nextPos;
+    if (!seen.includes([nextRow, nextCol].join())) {
+      totalStepCount = Math.max(totalStepCount, stepCount + dfsV2(table, [nextRow, nextCol], end, seen.concat([row, col].join())))
     }
-    paths = newPaths;
-  }
-  return answers
+  })
+  return totalStepCount
 }
 
-const map = (await Bun.file('example.txt').text())
-// const map = (await Bun.file('inputs.txt').text())
+// const map = (await Bun.file('example.txt').text())
+const map = (await Bun.file('inputs.txt').text())
   .split(/\n/)
   .filter(line => line)
   .map(line => line.split(''))
 
 const start = [0, map[0].join('').indexOf('.')];
 const end = [map.length - 1, map[map.length - 1].join('').indexOf('.')];
+const table = [start, ...findIntersections(map)].reduce((table, point) => {
+  table[point.join()] = connections(map, point[0], point[1]);
+  return table;
+}, {} as Table)
 
-const intersections: number[][] = [];
-map.forEach((row, y) => {
-  row.forEach((char, x) => {
-    if (char === '#') return
-    const hashCount = getHashCount(map, y, x)
-    if (hashCount < 2) {
-      intersections.push([y, x])
-    }
-  })
-})
-// intersections.forEach(arr => console.log(arr))
-const allPoints = [start, ...intersections] // , end];
-// console.log(allPoints)
-interface Table {
-  [key: string]: number[][],
-}
-const table: Table = {}
-for (const point of allPoints) {
-  table[JSON.stringify(point)] = connections(map, point[0], point[1])
-}
-console.log(table)
-// console.log(findAllPaths(table, start, end))
-const answers = findAllPaths(table, start, end)
-let best = 0;
-for (const answer of answers) {
-  if (answer[2] > best) {
-    best = answer[2]
-  }
-}
-console.log(best)
+const answer = dfsV2(table, start, end)
+console.log(answer)
+console.log([6394, 154].includes(answer))
+const endTime = Date.now();
+console.log(`Total Time: ${(endTime - startTime) / 1000} seconds`)
 
-// console.log(getHashCount(map, 3, 12))
-// console.log(connections(map, start[0], start[1]))
-// doThing(map, [start], end)
-// console.log(getNextIntersections(map, start, end))
