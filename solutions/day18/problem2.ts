@@ -1,59 +1,45 @@
 function getArea(coors: number[][]) {
-  const length = coors.length;
-  let area = 0;
-
-  for (let i = 0; i < length; i++) {
-    const j = (i + 1) % length;
-    area += coors[i][0] * coors[j][1]
-    area -= coors[j][0] * coors[i][1]
-  }
-
-  area = Math.abs(area) / 2;
-  return area
+  return Math.abs([...Array(coors.length).keys()].reduce((area, i) => {
+    const j = (i + 1) % coors.length;
+    return area + coors[i][0] * coors[j][1] - coors[j][0] * coors[i][1]
+  }, 0)) / 2
 }
 
 const dirs: { [key: string]: number[] } = {
-  U: [-1, 0],
-  D: [1, 0],
   R: [0, 1],
-  L: [0, -1]
+  D: [1, 0],
+  L: [0, -1],
+  U: [-1, 0],
 }
 
-const newDirs = [[0, 1], [1, 0], [0, -1], [-1, 0]];
+// const { positions, perimeter } = (await Bun.file('example.txt').text())
+const { positions, perimeter } = (await Bun.file('inputs.txt').text())
+  .split(/\n/)
+  .filter(line => line)
+  .reduce((obj, line) => {
+    const { positions, perimeter } = obj;
+    const [dir, count, color] = line.split(/\s+/)
+    const match = color.match(/\(#([\dabcdef]{5})([\dabcdef])\)/)
+    if (!match) throw Error('FAILED TO FIND COLOR CODE')
 
-// const fileContent = await Bun.file('example.txt').text()
-const fileContent = await Bun.file('inputs.txt').text()
-const lines = fileContent.split(/\n/).filter(line => line)
+    // Part 1
+    // const stepCountV2 = Number(count);
+    // const [dy, dx] = dirs[dir]
 
-let perimeter = 0;
-const positions: number[][] = [
-  [0, 0]
-];
+    // Part 2
+    const stepCountV2 = parseInt(match[1], 16)
+    const [dy, dx] = Object.values(dirs)[Number(match[2])];
 
-lines.forEach(line => {
-  const [dir, count, color] = line.split(/\s+/)
-  const match = color.match(/\(#([\dabcdef]{5})([\dabcdef])\)/)
-  console.log(match)
-  if (!match) throw Error('FAILED TO FIND COLOR CODE')
-  const stepCountV2 = parseInt(match[1], 16)
-  console.log(stepCountV2)
-  // const stepCount = Number(count)
-  // const [dy, dx] = dirs[dir];
-  const [dy, dx] = newDirs[Number(match[2])];
-  const [prevY, prevX] = positions[positions.length - 1]
-  // perimeter += stepCount
-  perimeter += stepCountV2
-  // positions.push([prevY + dy * stepCount, prevX + dx * stepCount])
-  positions.push([prevY + dy * stepCountV2, prevX + dx * stepCountV2])
-})
+    const [prevY, prevX] = positions[positions.length - 1]
+    return {
+      positions: [...positions, [prevY + dy * stepCountV2, prevX + dx * stepCountV2]],
+      perimeter: perimeter + stepCountV2,
+    }
+  }, { positions: [[0, 0]], perimeter: 0 })
 
-// Last position is a duplicate of start
-positions.splice(positions.length - 1)
-
-const answer = (getArea(positions) - (perimeter / 2) + 1) + perimeter;
+const answer = (getArea(positions.toSpliced(positions.length - 1)) - (perimeter / 2) + 1) + perimeter;
 console.log(answer);
-// console.log(answer === 56923 || answer === 62)
-console.log(answer === 952408144115 || answer === 66296566363189)
+console.log([62, 56923, 952408144115, 66296566363189].includes(answer))
 
 // ANSWER PART 1: 56923
 // ANSWER PART 2: 66296566363189
