@@ -32,8 +32,8 @@ function walkV2(queue: Position[], maxStep: number, stepCount: number = 0) {
   return walkV2(newQueue, maxStep, stepCount + 1)
 }
 
-const map = (await Bun.file('example.txt').text())
-// const map = (await Bun.file('inputs.txt').text())
+// const map = (await Bun.file('example.txt').text())
+const map = (await Bun.file('inputs.txt').text())
   .split(/\n/)
   .filter(line => line)
   .map(line => line.split(''))
@@ -51,10 +51,26 @@ map.some((line, y) => {
     }
   })
 })
-const answer = walkV2([start], 100);
+const answer = walkV2([start], 65);
 console.log(answer)
 console.log(answer === 3532 || answer === 64)
 const endTime = Date.now();
 console.log(`Time: ${(endTime - startTime) / 1000} seconds`)
+
+console.log(walkV2([start], 65)) // First map edge
+// console.log(walkV2([start], 65 + 131)) // Second map edge
+// console.log(walkV2([start], 65 + (131 * 2))) // Third map edge
+// 3703 First Edge
+// 32712 Second Edge
+// 90559 Third Edge
+//
+// WRONG
+// y = 87x^2 - 1351x + 51865
+// const equation = (x: number) => (87 * x**2) - (1351 * x) + 51865
+// console.log('equation answer')
+// console.log(equation(65))
+
+// we want to derive a quadratic equation
+// The total step count will reach an edge of the map
 
 // ANSWER PART 1: 3532
