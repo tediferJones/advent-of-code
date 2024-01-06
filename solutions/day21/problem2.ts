@@ -51,13 +51,57 @@ map.some((line, y) => {
     }
   })
 })
-const answer = walkV2([start], 65);
-console.log(answer)
-console.log(answer === 3532 || answer === 64)
+// WORKING
+// const answer = walkV2([start], 65);
+// console.log(answer)
+// console.log(answer === 3532 || answer === 64)
+
+// Essentially copied all of this from:
+// https://www.youtube.com/watch?v=C5wYxR6ZAPM&t=5209s&ab_channel=HyperNeutrino
+// Start at 1:21:00
+// TESTING
+const steps = 26501365
+const size = map.length
+const original = steps % (2 * size)
+console.log(walkV2([start], 5)) // First map edge
+const results = [];
+let done = false;
+let x = 0;
+while (!done) {
+  console.log(results)
+  // results.push(walkV2([start], x))
+  results.push(walkV2([start], original + 2 * size * x))
+  x = x + 1;
+  if (results.length >= 4) {
+    const [one, two, three, four] = results;
+    const [fd1, fd2, fd3] = [two - one, three - two, four - three]
+    const [sd1, sd2] = [fd2 - fd1, fd3 - fd2]
+    console.log(sd1, sd2)
+    if (sd1 === sd2) {
+      console.log('diffs are equal')
+      break;
+    } else {
+      results.shift()
+    }
+  }
+}
+const offset = x - 4;
+console.log('DONE?')
+console.log(results)
+const [alpha, beta, gamma] = results;
+const c = alpha;
+const a = (gamma - 2 * beta + c) / 2
+const b = (beta - c - a)
+console.log(a, b, c)
+const eq = (x: number) => a*x**2 + b*x + c
+console.log(eq(0), eq(1), eq(2), eq(3))
+const realAnswer = eq(Math.floor(steps / 2 * size) - offset)
+console.log(realAnswer)
+
 const endTime = Date.now();
 console.log(`Time: ${(endTime - startTime) / 1000} seconds`)
 
-console.log(walkV2([start], 65)) // First map edge
+// console.log(walkV2([start], 65)) // First map edge
 // console.log(walkV2([start], 65 + 131)) // Second map edge
 // console.log(walkV2([start], 65 + (131 * 2))) // Third map edge
 // 3703 First Edge
