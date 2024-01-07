@@ -6,7 +6,14 @@ interface Position {
 
 const startTime = Date.now();
 function walkV2(queue: Position[], maxStep: number, stepCount: number = 0) {
-  if (stepCount === maxStep) return queue.length
+  // if (stepCount === maxStep) return queue.length
+  if (stepCount === maxStep) {
+    return {
+      answer: queue.length,
+      queue,
+      stepCount
+    }
+  }
   let newQueue: Position[] = [];
   queue.forEach(({ row, col }) => {
     [[-1, 0], [1, 0], [0, -1], [0, 1]].forEach(dir => {
@@ -62,15 +69,31 @@ map.some((line, y) => {
 // TESTING
 const steps = 26501365
 const size = map.length
+// SHOULD WORK
 const original = steps % (2 * size)
-console.log(walkV2([start], 5)) // First map edge
+// TESTING
+// const original = steps % size
+// console.log(walkV2([start], 5)) // First map edge
 const results = [];
-let done = false;
 let x = 0;
-while (!done) {
+let oldResult = {
+  answer: 0,
+  queue: [start],
+  stepCount: 0,
+}
+while (true) {
   console.log(results)
   // results.push(walkV2([start], x))
-  results.push(walkV2([start], original + 2 * size * x))
+  // results.push(walkV2([start], original + 2 * size * x))
+
+  // Probably right
+  const walkResult = walkV2(oldResult.queue, original + 2 * size * x, oldResult.stepCount)
+
+  // Probably borked
+  // const walkResult = walkV2(oldResult.queue, original + size * x, oldResult.stepCount)
+  // console.log(walkResult)
+  results.push(walkResult.answer)
+  oldResult = walkResult
   x = x + 1;
   if (results.length >= 4) {
     const [one, two, three, four] = results;
@@ -118,3 +141,7 @@ console.log(`Time: ${(endTime - startTime) / 1000} seconds`)
 // The total step count will reach an edge of the map
 
 // ANSWER PART 1: 3532
+//
+// PART 2 WRONG ANSWERS:
+// Too High:
+// 43446443291092095000000
