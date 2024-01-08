@@ -63,85 +63,64 @@ map.some((line, y) => {
 // console.log(answer)
 // console.log(answer === 3532 || answer === 64)
 
-// Essentially copied all of this from:
-// https://www.youtube.com/watch?v=C5wYxR6ZAPM&t=5209s&ab_channel=HyperNeutrino
-// Start at 1:21:00
-// TESTING
-const steps = 26501365
 const size = map.length
-// SHOULD WORK
-const original = steps % (2 * size)
-// TESTING
-// const original = steps % size
-// console.log(walkV2([start], 5)) // First map edge
-const results = [];
-let x = 0;
-let oldResult = {
-  answer: 0,
-  queue: [start],
-  stepCount: 0,
-}
-while (true) {
-  console.log(results)
-  // results.push(walkV2([start], x))
-  // results.push(walkV2([start], original + 2 * size * x))
+// Step count to first edge of map
+const original = Math.floor(size / 2)
+// console.log(original)
 
-  // Probably right
-  const walkResult = walkV2(oldResult.queue, original + 2 * size * x, oldResult.stepCount)
-
-  // Probably borked
-  // const walkResult = walkV2(oldResult.queue, original + size * x, oldResult.stepCount)
-  // console.log(walkResult)
-  results.push(walkResult.answer)
-  oldResult = walkResult
-  x = x + 1;
-  if (results.length >= 4) {
-    const [one, two, three, four] = results;
-    const [fd1, fd2, fd3] = [two - one, three - two, four - three]
-    const [sd1, sd2] = [fd2 - fd1, fd3 - fd2]
-    console.log(sd1, sd2)
-    if (sd1 === sd2) {
-      console.log('diffs are equal')
-      break;
-    } else {
-      results.shift()
+function getQuadraticEquation() {
+  // I was only able to figure this out thanks to this video:
+  // https://www.youtube.com/watch?v=C5wYxR6ZAPM&t=5209s&ab_channel=HyperNeutrino
+  // Start at 1:21:00
+  const results = [];
+  let x = 0;
+  let oldResult = {
+    answer: 0,
+    queue: [start],
+    stepCount: 0,
+  }
+  while (true) {
+    console.log(results)
+    console.log('Checking for max step count of: ')
+    console.log(original + size * x)
+    const walkResult = walkV2(oldResult.queue, original + size * x, oldResult.stepCount)
+    results.push(walkResult.answer)
+    oldResult = walkResult
+    x = x + 1;
+    if (results.length >= 4) {
+      const [one, two, three, four] = results;
+      const [fd1, fd2, fd3] = [two - one, three - two, four - three]
+      const [sd1, sd2] = [fd2 - fd1, fd3 - fd2]
+      if (sd1 === sd2) {
+        console.log('diffs are equal')
+        break;
+      } else {
+        results.shift()
+      }
     }
   }
+  console.log('DONE')
+  console.log(results)
+  const [alpha, beta, gamma] = results;
+  const c = alpha;
+  const a = (gamma - 2 * beta + c) / 2
+  const b = (beta - c - a)
+  console.log(a, b, c)
+  const eq = (x: number) => a*x**2 + b*x + c
+  // Test to make sure equation solves correctly
+  console.log(eq(0), eq(1), eq(2), eq(3))
+  return eq
 }
-const offset = x - 4;
-console.log('DONE?')
-console.log(results)
-const [alpha, beta, gamma] = results;
-const c = alpha;
-const a = (gamma - 2 * beta + c) / 2
-const b = (beta - c - a)
-console.log(a, b, c)
-const eq = (x: number) => a*x**2 + b*x + c
-console.log(eq(0), eq(1), eq(2), eq(3))
-const realAnswer = eq(Math.floor(steps / 2 * size) - offset)
-console.log(realAnswer)
-
 const endTime = Date.now();
 console.log(`Time: ${(endTime - startTime) / 1000} seconds`)
 
-// console.log(walkV2([start], 65)) // First map edge
-// console.log(walkV2([start], 65 + 131)) // Second map edge
-// console.log(walkV2([start], 65 + (131 * 2))) // Third map edge
-// 3703 First Edge
-// 32712 Second Edge
-// 90559 Third Edge
-//
-// WRONG
-// y = 87x^2 - 1351x + 51865
-// const equation = (x: number) => (87 * x**2) - (1351 * x) + 51865
-// console.log('equation answer')
-// console.log(equation(65))
+// WORKING
+const steps = 26501365
 
-// we want to derive a quadratic equation
-// The total step count will reach an edge of the map
+// This is the result of running getQuadraticEquation
+const realEq = (x: number) => 14419*x**2 + 14590*x + 3703
+
+console.log('THE REAL ANSWER IS: ', realEq((steps - original) / size))
 
 // ANSWER PART 1: 3532
-//
-// PART 2 WRONG ANSWERS:
-// Too High:
-// 43446443291092095000000
+// ANSWER PART 2: 590104708070703
