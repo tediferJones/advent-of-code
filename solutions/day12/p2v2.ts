@@ -132,6 +132,9 @@ function checkerV3(
     console.log('failed, grouping not seperated')
     return 0
   }
+  // if (groups.length === 0 && springs.length && springs.includes('#')) {
+  //   return 0
+  // }
   // if (groups[0] < 0) {
   //   return 0
   // }
@@ -207,28 +210,167 @@ function checkerV3(
   return 1
 }
 
+function checkerV4(
+  springs: string[],
+  groups: number[],
+  cache = {},
+  pattern = '',
+): number {
+  const char = springs[0]
+  // console.log(springs, groups, pattern)
+
+  // Both of these break the examples
+  // if (groups[0] > 1 && char === '.') {
+  //   console.log('Failure?')
+  //   return 0
+  // }
+  // if (springs.length === 0 && groups.length === 0) {
+  //   console.log('springs and groups are empty', springs, groups, pattern)
+  //   return 1
+  // }
+
+  if (groups[0] === 0 && char === '#') {
+    // console.log('failed, grouping not seperated', pattern)
+    return 0
+  }
+  if (springs.length === 0 &&
+    (groups.length === 1 && groups[0] === 0)
+  ) {
+    // console.log('DONE STATE', springs, groups, pattern)
+    return 1
+  }
+
+  let [dot, hash] = [0, 0];
+  if ('.?'.includes(char)) {
+    // console.log('failed on dot')
+    const newGroups = groups[0] === 0 ? groups.slice(1) : groups
+    dot = checkerV4(springs.slice(1), newGroups, cache, pattern.concat('.'));
+  }
+  if ('#?'.includes(char) && groups.length && groups[0] !== 0) {
+    // console.log('failed on hash')
+    // const newGroups = groups[0] === 0 ? groups.slice(1) : groups.with(0, groups[0] - 1)
+    const newGroups = groups.with(0, groups[0] - 1)
+    hash = checkerV4(springs.slice(1), newGroups, cache, pattern.concat('#'));
+  }
+  return dot + hash
+}
+
+function checkerV5(
+  springs: string[],
+  groups: number[],
+  cache = {},
+  pattern = '',
+  depthCount = 0,
+): number {
+  const char = springs[0];
+  let [dot, hash] = [0, 0];
+  let newGroups = groups;
+  if (groups[0] === 0) {
+    newGroups = newGroups.slice(1)
+  }
+  if (char && newGroups.length === 0) {
+    if (springs.includes('#')) {
+      console.log('FAILED', depthCount, springs.join(''), groups, pattern)
+      return 0
+    } else {
+      console.log('VALID', depthCount, springs.join(''), groups, pattern)
+      return 1
+    }
+  }
+  if (!char){
+    if (groups[0] === 0 && groups.length === 1) {
+      console.log('VALID', depthCount, springs.join(''), groups, pattern)
+      return 1
+    } else {
+      console.log('FAILED', depthCount, springs.join(''), groups, pattern)
+      return 0
+    }
+  }
+  console.log(
+    char,
+    depthCount,
+    pattern,
+    springs.join(''),
+    groups
+  )
+
+  // if new groups has the same length as groups, we are mid grouping
+  // if groups[0] === 0, we just completed a group
+  // so we shouldn't place a H
+
+  // WHY WILL IT NOT SEPERATE HASHES PROPERLY
+  // IF WE JUST FINISHED A GROUP (i.e. groups[0] === 0)
+  // THEN YOU CANT PLACE A HASH
+
+  // BEST SO FAR?
+  if ('#?'.includes(char)) {
+    hash = checkerV5(
+      springs.slice(1),
+      newGroups.with(0, newGroups[0] - 1),
+      cache,
+      pattern.concat('#'),
+      depthCount + 1
+    );
+  }
+  if ('.?'.includes(char)/* && groups[0] === 0*/) {
+    dot = checkerV5(
+      springs.slice(1),
+      // newGroups,
+      groups,
+      cache,
+      pattern.concat('.'),
+      depthCount + 1
+    );
+  }
+  return dot + hash
+}
+
 const total = (
   (await Bun.file('example.txt').text())
   // (await Bun.file('inputs.txt').text())
   .split(/\n/)
   .filter(line => line)
-  // .reduce((total, line) => {
-  .every((line, i) => {
+  .reduce((total, line, i) => {
+  // .every((line, i) => {
     // We want to return the total number of possible combinations
     const [springs, groups] = line.split(/\s+/)
     // return total + checker(springs.split(''), results); // Part 1
     // console.log(springs)
     // console.log(trimDots(springs.split('')), groups.split(',').map(str => Number(str)))
     // return 0
-    if (i < 1) return true
-    console.log(springs)
-    const test = checkerV3(trimDots(springs.split('')), groups.split(',').map(str => Number(str)))
+    // if (i < 1) return true
+    // if (i < 5) return true
+    // const test = checkerV3(trimDots(springs.split('')), groups.split(',').map(str => Number(str)))
+
+    // return 0
+
+    // const test = checkerV4(trimDots(springs.split('')), groups.split(',').map(str => Number(str)))
+    // const original = checker(springs.split(''), groups)
+    // if (test !== original) {
+    //   // if (test < original) {
+    //   //   console.log('TEST LESS THAN ORIGINAL')
+    //   // }
+    //   console.log('ANSWERS DO NOT MATCH')
+    // }
+    // console.log('Original: ', original, 'Testing: ', test)
+    // console.log(springs, groups)
+
+    if (i > 0) return total + 0
+    // if (i < 1) return total + 0
+    const testV2 = checkerV5(
+      trimDots(springs.split('')),
+      // groups.split(',').map(str => Number(str))
+      [ 0 ].concat(groups.split(',').map(str => Number(str)))
+    )
+    console.log(testV2)
+
     // console.log(test)
     // console.log(trimDots(springs.split('')).join(''))
     // console.log(checkerV2(springs.split(''), groups.split(',').map(str => Number(str)));
-    console.log('result', test)
-    return 0
-    return total + test
+    // console.log('result', test)
+    // return 0
+    // return total + original
+    return total + testV2
 
     // const newSprings = (springs + '?').repeat(5).slice(0, -1)
     // const newResults = (results + ',').repeat(5).slice(0, -1)
@@ -241,5 +383,15 @@ const total = (
     // return total + combos; // Part 2
   }, 0)
 )
+
+// ?.#..?###..#?.? 1,4,2,1
+// console.log('Test Result: ',
+//   checkerV4(
+//     trimDots('?.#..?###..#?.?'.split('')),
+//     '1,4,2,1'.split(',').map(str => Number(str))
+//   )
+// )
+// console.log('expected: 1')
+
 console.log(total)
 console.log([21, 7402, 525152].includes(total))
