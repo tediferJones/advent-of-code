@@ -1,3 +1,5 @@
+import { ALL } from "dns";
+
 function getHashGroups(springs: string[]) {
   return springs.join('')
     .split(/\.+/)
@@ -53,6 +55,7 @@ function checker(springs: string[], expectedResult: string): number {
 // Then use memoization to track old results
 // This allows us to look up answers instead of re-processing the same patterns
 
+const startTime = Bun.nanoseconds()
 const total = (
   (await Bun.file('example.txt').text())
   // (await Bun.file('inputs.txt').text())
@@ -81,5 +84,7 @@ const total = (
     return total + combos; // Part 2
   }, 0)
 )
+const endTime = Bun.nanoseconds()
+console.log(`${(endTime - startTime) / 1000000000}`)
 console.log(total)
 console.log([21, 7402, 525152].includes(total))
