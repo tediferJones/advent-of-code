@@ -1,68 +1,108 @@
+// We need to count the number of hi pulses and lo pulses separately
+// the final answer is the product of hi pulse count times lo pulse count
+
+type Pulse = 'hi' | 'lo'
+type Modules = { [key: string]: (FlipFlop | Conjunction | Broadcaster) }
+
 class FlipFlop {
-  // name: string
-  nextName: string
-  isOn: boolean
-  constructor(nextName: string) {
-    // this.name = name
+  recipients: string[];
+  name: string;
+  isOn: boolean;
+  constructor(recipients: string[], name: string) {
+    this.recipients = recipients;
+    this.name = name;
     this.isOn = false;
-    this.nextName = nextName;
   }
-  recievePulse(type: string) {
-    if (type === 'lo') {
-      this.isOn = !this.isOn
-    }
-    return this.isOn ? 'hi' : 'lo'
+  // receive
+  receivePulse(type: Pulse, sender: string) {
+    if (type === 'hi') return;
+    this.isOn = !this.isOn;
+    sendPulse(
+      this.isOn ? 'hi' : 'lo',
+      this.recipients,
+      sender,
+    )
   }
 }
 
 class Conjunction {
-  mostRecentPulse: string
-  nextName: string
-  constructor(nextName: string) {
-    this.mostRecentPulse = 'lo'
-    this.nextName = nextName
+  recipients: { [key: string]: Pulse }
+  name: string;
+  constructor(recipients: string[], name: string) {
+    this.recipients = recipients.reduce((obj, recipient) => {
+      obj[recipient] = 'lo'
+      return obj
+    }, {} as { [key: string]: Pulse })
+    this.name = name;
   }
-  recievePulse(type: string) {
-    this.mostRecentPulse = type;
+  receivePulse(type: Pulse, sender: string) {
+    this.recipients[sender] = type;
+    const names = Object.keys(this.recipients);
+    const allHigh = names.every(name => this.recipients[name] === 'hi');
+    sendPulse(
+      allHigh ? 'lo' : 'hi',
+      names,
+      sender,
+    );
   }
 }
 
 class Broadcaster {
-  nextName: string
-  constructor(nextName: string) {
-    this.nextName = nextName
+  recipients: string[];
+  name: string;
+  constructor(recipients: string[], name: string) {
+    this.recipients = recipients;
+    this.name = name;
   }
-  recievePulse(type: string) {
-    return type;
+  receivePulse(type: Pulse, sender: string) {
+    // return type;
+    sendPulse(type, this.recipients, sender)
   }
 }
 
-const fileContent = await Bun.file('example.txt').text()
-// const answer =
-const obj: {
-  [key: string]: (FlipFlop | Conjunction | Broadcaster)[]
-} = {};
+class AllModules {
+  modules: Modules;
+  count: { hi: number, lo: number };
+
+  constructor() {
+    this.modules = {};
+    this.count = { hi: 0, lo: 0 }
+  }
+
+  pushBtn() {
+    sendPulse('lo', (this.modules['broadcaster'] as Broadcaster).recipients, 'broadcaster')
+  }
+
+  // sendPulse(pulse: Pulse, recipients: string[], sender: string) {
+  //   recipients.forEach(recipient => this.modules[recipient].recievePulse(pulse, sender))
+  // }
+}
+
+function sendPulse(pulse: Pulse, recipients: string[], sender: string) {
+  recipients.forEach(recipient => {
+    console.log('FROM', sender, 'SENDING', recipients, allMods.modules[recipient])
+    allMods.modules[recipient].receivePulse(pulse, sender)
+  })
+}
+
+const fileContent = await Bun.file('example.txt').text();
+const allMods = new AllModules();
+
 fileContent
   .split(/\n/)
   .filter(line => line)
   .forEach(line => {
-    console.log(line);
-    // const match = line.match(/([%&]?)(\w|broadcaster) -> (.+)/)
-    // console.log(match);
-    [...line.matchAll(/([%&]?)(\w+|broadcaster) -> (.+)/g)].map(match => {
-      const [fullMatch, symbol, name, nextNames] = match;
-      if (!obj[name]) obj[name] = []
-      nextNames.split(', ').forEach(nextName => {
-        if (symbol === '%') {
-          return obj[name].push(new FlipFlop(nextName));
-        }
-        if (symbol === '&') {
-          return obj[name].push(new Conjunction(nextName))
-        }
-        return obj[name].push(new Broadcaster(nextName))
-      })
-    })
-  })
+    const [ match, type, name, recipientStr ] = line.match(/([%&]?)(\w+|broadcaster) -> (.+)/) || []
+    const recipients = recipientStr.split(', ')
+    if (type === '%') {
+      allMods.modules[name] = new FlipFlop(recipients, name);
+    } else if (type === '&') {
+      allMods.modules[name] = new Conjunction(recipients, name);
+    } else {
+      allMods.modules[name] = new Broadcaster(recipients, name);
+    }
+  });
 
-console.log(obj)
-// answer.forEach(line => console.log(line))
+console.log(allMods)
+allMods.pushBtn();
+console.log(allMods)
