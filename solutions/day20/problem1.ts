@@ -13,37 +13,34 @@ class FlipFlop {
     this.name = name;
     this.isOn = false;
   }
-  // receive
-  receivePulse(type: Pulse, sender: string) {
+
+  receivePulse(type: Pulse) {
     if (type === 'hi') return;
     this.isOn = !this.isOn;
-    sendPulse(
-      this.isOn ? 'hi' : 'lo',
-      this.recipients,
-      sender,
-    )
+    const sendPulse = this.isOn ? 'hi' : 'lo'
+    this.recipients.forEach(recipient => {
+      allMods.pulseQueue.push({ from: this.name, type: sendPulse, to: recipient })
+    })
   }
 }
 
 class Conjunction {
-  recipients: { [key: string]: Pulse }
+  recipients: string[];
+  senders: { [key: string]: Pulse };
   name: string;
   constructor(recipients: string[], name: string) {
-    this.recipients = recipients.reduce((obj, recipient) => {
-      obj[recipient] = 'lo'
-      return obj
-    }, {} as { [key: string]: Pulse })
+    this.recipients = recipients;
+    this.senders = {};
     this.name = name;
   }
+
   receivePulse(type: Pulse, sender: string) {
-    this.recipients[sender] = type;
-    const names = Object.keys(this.recipients);
-    const allHigh = names.every(name => this.recipients[name] === 'hi');
-    sendPulse(
-      allHigh ? 'lo' : 'hi',
-      names,
-      sender,
-    );
+    this.senders[sender] = type;
+    const allHigh = Object.keys(this.senders).every(name => this.senders[name] === 'hi');
+    const sendPulse = allHigh ? 'lo' : 'hi'
+    this.recipients.forEach(recipient => {
+      allMods.pulseQueue.push({ from: this.name, type: sendPulse, to: recipient })
+    })
   }
 }
 
@@ -54,35 +51,39 @@ class Broadcaster {
     this.recipients = recipients;
     this.name = name;
   }
-  receivePulse(type: Pulse, sender: string) {
-    // return type;
-    sendPulse(type, this.recipients, sender)
+
+  receivePulse(type: Pulse) {
+    this.recipients.forEach(recipient => {
+      allMods.pulseQueue.push({ from: this.name, type, to: recipient })
+    })
   }
 }
 
 class AllModules {
   modules: Modules;
   count: { hi: number, lo: number };
+  pulseQueue: { from: string, to: string, type: Pulse }[];
 
   constructor() {
     this.modules = {};
-    this.count = { hi: 0, lo: 0 }
+    this.count = { hi: 0, lo: 0 };
+    this.pulseQueue = [];
   }
 
   pushBtn() {
-    sendPulse('lo', (this.modules['broadcaster'] as Broadcaster).recipients, 'broadcaster')
+    const sender = 'broadcaster';
+    (this.modules[sender] as Broadcaster).recipients.forEach(recipient => {
+      this.pulseQueue.push({ from: sender, type: 'lo', to: recipient })
+    })
+
+    while (this.pulseQueue.length) {
+      const item = this.pulseQueue.shift();
+      if (!item) return console.log('queue is empty')
+      console.log(`${item.from} --${item.type}--> ${item.to}`)
+      // Pass 'this' to all receivePulse calls, that way receivePulse funcs dont have to refer to the global var for allMods
+      this.modules[item.to].receivePulse(item.type, item.from)
+    }
   }
-
-  // sendPulse(pulse: Pulse, recipients: string[], sender: string) {
-  //   recipients.forEach(recipient => this.modules[recipient].recievePulse(pulse, sender))
-  // }
-}
-
-function sendPulse(pulse: Pulse, recipients: string[], sender: string) {
-  recipients.forEach(recipient => {
-    console.log('FROM', sender, 'SENDING', recipients, allMods.modules[recipient])
-    allMods.modules[recipient].receivePulse(pulse, sender)
-  })
 }
 
 const fileContent = await Bun.file('example.txt').text();
