@@ -14,12 +14,12 @@ class FlipFlop {
     this.isOn = false;
   }
 
-  receivePulse(type: Pulse) {
+  receivePulse(modules: AllModules, type: Pulse) {
     if (type === 'hi') return;
     this.isOn = !this.isOn;
     const sendPulse = this.isOn ? 'hi' : 'lo'
     this.recipients.forEach(recipient => {
-      allMods.pulseQueue.push({ from: this.name, type: sendPulse, to: recipient })
+      modules.pulseQueue.push({ from: this.name, type: sendPulse, to: recipient })
     })
   }
 }
@@ -34,12 +34,13 @@ class Conjunction {
     this.name = name;
   }
 
-  receivePulse(type: Pulse, sender: string) {
+  receivePulse(modules: AllModules, type: Pulse, sender: string) {
     this.senders[sender] = type;
     const allHigh = Object.keys(this.senders).every(name => this.senders[name] === 'hi');
     const sendPulse = allHigh ? 'lo' : 'hi'
+    // console.log('all High:', allHigh, this.senders)
     this.recipients.forEach(recipient => {
-      allMods.pulseQueue.push({ from: this.name, type: sendPulse, to: recipient })
+      modules.pulseQueue.push({ from: this.name, type: sendPulse, to: recipient })
     })
   }
 }
@@ -52,9 +53,9 @@ class Broadcaster {
     this.name = name;
   }
 
-  receivePulse(type: Pulse) {
+  receivePulse(modules: AllModules, type: Pulse) {
     this.recipients.forEach(recipient => {
-      allMods.pulseQueue.push({ from: this.name, type, to: recipient })
+      modules.pulseQueue.push({ from: this.name, type, to: recipient })
     })
   }
 }
@@ -70,23 +71,44 @@ class AllModules {
     this.pulseQueue = [];
   }
 
-  pushBtn() {
-    const sender = 'broadcaster';
-    (this.modules[sender] as Broadcaster).recipients.forEach(recipient => {
-      this.pulseQueue.push({ from: sender, type: 'lo', to: recipient })
+  linkConjunctions() {
+    // We want to get all the nodes that are connected to each conjunction
+    // This function can almost certainly be improved and/or merged into building of the initial this.modules object
+    const conjunctions = Object.keys(this.modules).filter(key => {
+      return this.modules[key].constructor.name === 'Conjunction'
     })
+    console.log(conjunctions)
 
-    while (this.pulseQueue.length) {
-      const item = this.pulseQueue.shift();
-      if (!item) return console.log('queue is empty')
-      console.log(`${item.from} --${item.type}--> ${item.to}`)
-      // Pass 'this' to all receivePulse calls, that way receivePulse funcs dont have to refer to the global var for allMods
-      this.modules[item.to].receivePulse(item.type, item.from)
+    Object.keys(this.modules).forEach(key => {
+      conjunctions.forEach(conj => {
+        if (this.modules[key].recipients.includes(conj)) {
+          (this.modules[conj] as Conjunction).senders[key] = 'lo'
+        }
+      })
+    })
+  }
+
+  pushBtn(pushCount: number) {
+    let count = 0
+    while (count < pushCount) {
+      this.pulseQueue = [ { from: 'button', type: 'lo', to: 'broadcaster' } ]
+      while (this.pulseQueue.length) {
+        const item = this.pulseQueue.shift();
+        if (!item) return console.log('queue is empty');
+        console.log(`${item.from} -${item.type}-> ${item.to}`);
+        this.count[item.type]++;
+        this.modules[item.to]?.receivePulse(this, item.type, item.from);
+      }
+      count++
+      console.log('DONE WITH BUTTON PUSH:', count)
     }
   }
 }
 
-const fileContent = await Bun.file('example.txt').text();
+const startTime = Bun.nanoseconds();
+// const fileContent = await Bun.file('example.txt').text();
+// const fileContent = await Bun.file('example2.txt').text();
+const fileContent = await Bun.file('inputs.txt').text();
 const allMods = new AllModules();
 
 fileContent
@@ -99,11 +121,19 @@ fileContent
       allMods.modules[name] = new FlipFlop(recipients, name);
     } else if (type === '&') {
       allMods.modules[name] = new Conjunction(recipients, name);
-    } else {
+    } else if (name === 'broadcaster') {
       allMods.modules[name] = new Broadcaster(recipients, name);
     }
   });
 
 console.log(allMods)
-allMods.pushBtn();
+allMods.linkConjunctions()
+// allMods.pushBtn(1);
+allMods.pushBtn(1000);
 console.log(allMods)
+const answer = allMods.count.hi * allMods.count.lo;
+console.log(`TIME: ${(Bun.nanoseconds() - startTime) / 10**9}`)
+console.log(`ANSWER: ${answer}`)
+console.log(answer === 919383692)
+
+// ANSWER PART 1: 919383692
