@@ -102,33 +102,27 @@ class AllModules {
   pushBtn(pushCount = Infinity) {
     let count = 0
     while (count < pushCount) {
-      // const state = Object.keys(this.modules).toSorted().map(key => {
-      //   const mod = this.modules[key]
-      //   if (mod.constructor.name === 'Conjunction') {
-      //     return (mod as Conjunction).allHigh();
-      //   } else if (mod.constructor.name === 'FlipFlop') {
-      //     return (mod as FlipFlop).isOn;
-      //   }
-      //   return null
-      // })
-      // const strState = JSON.stringify(state)
-      // if (history[strState]) {
-      //   console.log(history)
-      //   throw Error('CYCLE DETECTED AT:' + count)
-      // } else {
-      //   history[strState] = count
-      // }
-
       // if ((this.modules['cs'] as Conjunction).allLow()) {
-      //   console.log('CS ALL LOW AT', count)
+      // if ((this.modules['dx'] as Conjunction).allLow()) {
+      //   console.log('ALL LOW AT', count)
       //   diffChecker.push(count)
       // }
       this.pulseQueue = [ { from: 'button', type: 'lo', to: 'broadcaster' } ]
+
+      // this.pulseQueue = [ { from: 'broadcaster', type: 'lo', to: 'ns' } ] // ANSWER: 4006
+      // this.pulseQueue = [ { from: 'broadcaster', type: 'lo', to: 'pj' } ] // ANSWER: 4026
+      // this.pulseQueue = [ { from: 'broadcaster', type: 'lo', to: 'xz' } ] // ANSWER: 3916
+      // this.pulseQueue = [ { from: 'broadcaster', type: 'lo', to: 'sg' } ] // ANSWER: 3918
+      // count++
       while (this.pulseQueue.length) {
         const item = this.pulseQueue.shift();
         if (!item) return console.log('queue is empty');
         // console.log(`${item.from} -${item.type}-> ${item.to}`);
         if (item.to === 'rx' && item.type === 'lo') return count
+        // if (item.from === 'ck' && item.type === 'lo' && item.to === 'qt') return console.log('RESULT', count) || count
+        // if (item.from === 'cs' && item.type === 'lo' && item.to === 'qb') return console.log('RESULT', count) || count
+        // if (item.from === 'dx' && item.type === 'lo' && item.to === 'mp') return console.log('RESULT', count) || count
+        // if (item.from === 'jh' && item.type === 'lo' && item.to === 'ng') return console.log('RESULT', count) || count
         this.count[item.type]++;
         this.modules[item.to]?.receivePulse(this, item.type, item.from);
       }
@@ -154,75 +148,38 @@ class AllModules {
       // printConjState('dx', count)
 
       // if ((this.modules['cs'] as Conjunction).allHigh()) {
-      if ((this.modules['dx'] as Conjunction).allHigh()) {
-        return console.log('CS ALL HIGH AT', count)
-        // Theory: cs will be all true at (8 * 16 * 32 * 64 * 128 * 256 * 512 * 1024) + 4
-      }
-
-      // if (printNext) {
-      //   console.log(
-      //     // @ts-ignore
-      //     Object.keys(this.modules['cs'].senders).map(key => this.modules['cs'].senders[key]),
-      //     count.toLocaleString(),
-      //     'CS',
-      //     (this.modules['cs'] as Conjunction).allLow(),
-      //   )
-      //   printNext = false
-      // }
-      // if ((this.modules['cs'] as Conjunction).allLow()) {
-      //   console.log('CS ALL LOW AT', count)
-      //   printNext = true
+      // if ((this.modules['dx'] as Conjunction).allHigh()) {
+      //   return console.log('CS ALL HIGH AT', count)
+      //   // Theory: cs will be all true at (8 * 16 * 32 * 64 * 128 * 256 * 512 * 1024) + 4
       // }
     }
   }
-
-  linkAll() {
-    Object.keys(this.modules).forEach(senderName => {
-      this.modules[senderName].recipients.forEach(recipient => {
-        this.modules[recipient].sendersAll.push(senderName);
-      })
-    })
-  }
-
-  traceFrom(modName: string, type: Pulse) {
-    type TracedPath = { [key: string]: TracedPath }
-    const result: TracedPath = { [modName]: {} }
-    this.modules[modName].sendersAll.forEach(sender => {
-      // We need to trace backwards, so we need to:
-      //  - infer pulse type based on where it is being sent to
-      //  - track all paths, because there are other paths that could affect whatever path we rely on
-      //  - But will this actually be any faster?
-      //    - At best we will still have to track all nodes that affect our desired path (path from broadcaster to rx)
-      //    - which it seems like will still be most of our paths
-      const modType = this.modules[sender].constructor.name
-      // result[modName][sender] = this.traceFrom(sender, type)
-    })
-    return result;
-  }
 }
 
-// It would probably be faster to process the tree in reverse, starting from rx with a lo pulse, and tracing until we reach a button call
+// Get GCD using Euclidean algorithm
+function gcd(a: number, b: number) {
+    while (b !== 0) {
+        [a, b] = [b, a % b];
+    }
+    return a;
+}
+
+// Get LCM of two numbers
+function lcm(a: number, b: number) {
+    return (a * b) / gcd(a, b);
+}
+
+// Get LCM of an array of numbers
+function lcmOfArray(arr: number[]) {
+    return arr.reduce((acc, num) => lcm(acc, num), 1);
+}
+
 
 const startTime = Bun.nanoseconds();
 // const fileContent = await Bun.file('example.txt').text();
 // const fileContent = await Bun.file('example2.txt').text();
 const fileContent = await Bun.file('inputs.txt').text();
 const allMods = new AllModules();
-
-// { stateString: btnCount }
-const history: { [key: string]: number } = {}
-let printNext = false;
-const diffChecker: number[] = []
-
-function printConjState(modName: string, count: number) {
-  console.log(
-    // @ts-ignore
-    Object.keys(allMods.modules[modName].senders).map(key => allMods.modules[modName].senders[key]),
-    count.toLocaleString(),
-    modName,
-    (allMods.modules[modName] as Conjunction).allLow(),
-  )
-}
 
 fileContent
   .split(/\n/)
@@ -267,12 +224,23 @@ fileContent
 // rx wants lo
 // dr wants all hi
 // qb, mp, ng, qt want all hi
-//
+
+console.log(lcmOfArray([ 4007, 4027, 3917, 3919 ]))
+// FIND LCM OF 4007, 4027, 3917, and 3919
+// How did we get here?
+//  1.) visualize graph of your input and determine the start and end of each cluster of the graph
+//      - In our case, all nodes that are immediate descendants of the broadcaster, are the starts of all our clusters
+//      - The end of each cluster is the first conjunction module we can find (within each cluster)
+//      - also need to determine number of conjunctions between end and xr (this determines the type of pulse end needs to send)
+//  2.) once the start and end of each cluster has been determined we must find the number of button presses that will result in a lo pulse being sent to the end node
+//  3.) the result for each cluster should result in the numbers listed above, from there just find the LCM and hope that it is the right answer
 
 // console.log(allMods)
 // allMods.linkAll();
+
 allMods.linkConjunctions()
-allMods.pushBtn();
+// allMods.pushBtn(100000000);
+
 // diffChecker.reduce((_, count, i) => {
 //   console.log(count - diffChecker[i - 1])
 //   return 0
@@ -281,8 +249,23 @@ allMods.pushBtn();
 // console.log(allMods)
 // console.log('trace from:', allMods.traceFrom('c', 'lo'))
 // const answer = allMods.count.hi * allMods.count.lo;
-console.log(`TIME: ${(Bun.nanoseconds() - startTime) / 10**9}`)
+console.log(`TIME: ${(Bun.nanoseconds() - startTime) / 10**9}`);
 // console.log(`ANSWER: ${answer}`)
 // console.log(answer === 919383692)
 
+// Time to brute force
+// (() => {
+//   const sampleCount = 1000000
+//   const start = Bun.nanoseconds();
+//   allMods.pushBtn(sampleCount);
+//   const end = Bun.nanoseconds();
+//   const time = (end - start) / 10**9
+//   const totalSeconds = (247702167614647 / sampleCount) * time 
+//   console.log(`${totalSeconds / 60 / 60 / 24 / 365.25} years`)
+// })()
+
+// WRONG ANSWERS PART 2:
+// 937320042252 TOO LOW
+
 // ANSWER PART 1: 919383692
+// ANSWER PART 2: 247702167614647
