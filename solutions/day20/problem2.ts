@@ -1,3 +1,22 @@
+// HOW TO SOLVE PART 2
+//
+// Visualize the graph of all modules (this helps a lot)
+// Our input has 4 branches, the recipients of the broadcaster node marks the start of each branch
+// The end of each branch can be found by looking for the first conjunction module on a given branch
+// For each branch find the number of button presses (starting at the start node) to return a low pulse from the end node
+//   - We can infer from the visualized graph that each branch's end node must return a low pulse to it's next node
+// Once we have the number of button pushes for each branch, we just find the LCM of these numbers
+// Example for our input:
+//  - { start: 'ns', end: 'ck', type: 'lo' } = 4007
+//  - { start: 'pj', end: 'cs', type: 'lo' } = 4027
+//  - { start: 'xz', end: 'dx', type: 'lo' } = 3917
+//  - { start: 'sg', end: 'jh', type: 'lo' } = 3919
+//
+// In short:
+//   - break the problem up into smaller parts, only worry about one branch at a time
+//   - Solve the parts individually, and determine the answer from there by finding the LCM
+//   - LCM indicates the point at which all branches are cycled to the correct position to allow xr to receive a low pulse
+
 type Pulse = 'hi' | 'lo'
 type Modules = { [key: string]: (FlipFlop | Conjunction | Broadcaster) }
 type PulseState = { from: string, to: string, type: Pulse }
@@ -71,13 +90,30 @@ class AllModules {
     this.pulseQueue = [];
   }
 
+  async buildModules(fileName: string) {
+    (await Bun.file(fileName).text())
+      .split(/\n/)
+      .filter(line => line)
+      .forEach(line => {
+        const [ match, type, name, recipientStr ] = line.match(/([%&]?)(\w+|broadcaster) -> (.+)/) || []
+        const recipients = recipientStr.split(', ')
+        if (type === '%') {
+          this.modules[name] = new FlipFlop(recipients, name);
+        } else if (type === '&') {
+          this.modules[name] = new Conjunction(recipients, name);
+        } else if (name === 'broadcaster') {
+          this.modules[name] = new Broadcaster(recipients, name);
+        }
+      });
+    this.linkConjunctions();
+  }
+
   linkConjunctions() {
     // We want to get all the nodes that are connected to each conjunction
     // This function can almost certainly be improved and/or merged into building of the initial this.modules object
     const conjunctions = Object.keys(this.modules).filter(key => {
       return this.modules[key].constructor.name === 'Conjunction'
     })
-    // console.log('CONJUNCTIONS', conjunctions)
 
     Object.keys(this.modules).forEach(key => {
       conjunctions.forEach(conj => {
@@ -90,7 +126,7 @@ class AllModules {
 
   pushBtn(pushCount = Infinity, initialPulse?: PulseState, desiredResult?: Omit<PulseState, 'to'>) {
     let count = 0
-    while (count < pushCount) {
+    while (!pushCount || count < pushCount) {
       this.pulseQueue = [ initialPulse || { from: 'button', type: 'lo', to: 'broadcaster' } ]
       count++
       while (this.pulseQueue.length) {
@@ -122,6 +158,21 @@ class AllModules {
       return this.findConjunction(next)
     }
   }
+
+  solvePart1() {
+    this.pushBtn(1000);
+    return this.count.hi * this.count.lo;
+  }
+
+  solvePart2() {
+    return lcmOfArray(
+      allMods.modules['broadcaster'].recipients.map(start => {
+        const end = allMods.findConjunction(start)
+        if (!end) throw Error('couldnt find conjunction')
+        return allMods.traceBranch({ start, end, type: 'lo' })
+      }) as number[]
+    )
+  }
 }
 
 // Get GCD using Euclidean algorithm
@@ -140,26 +191,21 @@ function lcmOfArray(arr: number[]) {
 }
 
 const startTime = Bun.nanoseconds();
-// const fileContent = await Bun.file('example.txt').text();
-// const fileContent = await Bun.file('example2.txt').text();
-const fileContent = await Bun.file('inputs.txt').text();
 const allMods = new AllModules();
+// await allMods.buildModules('example.txt');
+// await allMods.buildModules('example2.txt');
+await allMods.buildModules('inputs.txt');
 
-fileContent
-  .split(/\n/)
-  .filter(line => line)
-  .forEach(line => {
-    const [ match, type, name, recipientStr ] = line.match(/([%&]?)(\w+|broadcaster) -> (.+)/) || []
-    const recipients = recipientStr.split(', ')
-    if (type === '%') {
-      allMods.modules[name] = new FlipFlop(recipients, name);
-    } else if (type === '&') {
-      allMods.modules[name] = new Conjunction(recipients, name);
-    } else if (name === 'broadcaster') {
-      allMods.modules[name] = new Broadcaster(recipients, name);
-    }
-  });
-allMods.linkConjunctions();
+// const answer = allMods.solvePart1();
+const answer = allMods.solvePart2();
+console.log(`TIME: ${(Bun.nanoseconds() - startTime) / 10**9}`);
+console.log(
+  [ 919383692, 247702167614647 ].includes(answer),
+  answer,
+);
+
+// ANSWER PART 1: 919383692
+// ANSWER PART 2: 247702167614647
 
 // Use this output with https://csacademy.com/app/graph_editor/, to visualize the graph
 // const visData = fileContent
@@ -171,56 +217,3 @@ allMods.linkConjunctions();
 //     return recipients.map(recipient => `${name} ${recipient}`)
 //   });
 // console.log(visData.flat().join('\n'))
-
-// console.log(lcmOfArray([ 4007, 4027, 3917, 3919 ]))
-// FIND LCM OF 4007, 4027, 3917, and 3919
-// How did we get here?
-//  1.) visualize graph of your input and determine the start and end of each cluster of the graph
-//      - In our case, all nodes that are immediate descendants of the broadcaster, are the starts of all our clusters
-//      - The end of each cluster is the first conjunction module we can find (within each cluster)
-//      - also need to determine number of conjunctions between end and xr (this determines the type of pulse end needs to send)
-//  2.) once the start and end of each cluster has been determined we must find the number of button presses that will result in a lo pulse being sent to the end node
-//  3.) the result for each cluster should result in the numbers listed above, from there just find the LCM and hope that it is the right answer
-
-// console.log(allMods)
-
-// const answer = lcmOfArray(
-//   [
-//     { start: 'ns', end: 'ck', type: 'lo' },
-//     { start: 'pj', end: 'cs', type: 'lo' },
-//     { start: 'xz', end: 'dx', type: 'lo' },
-//     { start: 'sg', end: 'jh', type: 'lo' },
-//   ].map(state => allMods.traceBranch(
-//       state as { start: string, end: string, type: Pulse }
-//     ) as number)
-// )
-
-const answer = lcmOfArray(
-  allMods.modules['broadcaster'].recipients.map(start => {
-    const end = allMods.findConjunction(start)
-    if (!end) throw Error('couldnt find conjunction')
-    return allMods.traceBranch({ start, end, type: 'lo' })
-  }) as number[]
-)
-
-// allMods.pushBtn(1000);
-// const answer = allMods.count.hi * allMods.count.lo;
-console.log(`TIME: ${(Bun.nanoseconds() - startTime) / 10**9}`);
-console.log(
-  [ 919383692, 247702167614647 ].includes(answer),
-  answer,
-)
-
-// Time to brute force
-// (() => {
-//   const sampleCount = 1000000
-//   const start = Bun.nanoseconds();
-//   allMods.pushBtn(sampleCount);
-//   const end = Bun.nanoseconds();
-//   const time = (end - start) / 10**9
-//   const totalSeconds = (247702167614647 / sampleCount) * time 
-//   console.log(`${totalSeconds / 60 / 60 / 24 / 365.25} years`)
-// })()
-
-// ANSWER PART 1: 919383692
-// ANSWER PART 2: 247702167614647
