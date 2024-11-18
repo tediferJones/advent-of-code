@@ -77,14 +77,14 @@ const hailStones = fileContents
 // }, 0)
 // console.log(answer, answer === 16172)
 
-type Diff = { x: number, y: number, z: number }
-function getDiff(a: Hail, b: Hail): Diff {
-  return {
-    x: a.vel.x - b.vel.x,
-    y: a.vel.y - b.vel.y,
-    z: a.vel.z - b.vel.z,
-  }
-}
+// type Diff = { x: number, y: number, z: number }
+// function getDiff(a: Hail, b: Hail): Diff {
+//   return {
+//     x: a.vel.x - b.vel.x,
+//     y: a.vel.y - b.vel.y,
+//     z: a.vel.z - b.vel.z,
+//   }
+// }
 
 // function getAllPositions(stones: Hail[]) {
 //   const trajectories: Diff[][]  = []
@@ -115,9 +115,98 @@ function setNextFrame(stones: Hail[]) {
     })
   })
 }
-console.log(JSON.stringify(hailStones, undefined, 2))
-setNextFrame(hailStones)
-console.log(JSON.stringify(hailStones, undefined, 2))
+// console.log(JSON.stringify(hailStones, undefined, 2))
+// setNextFrame(hailStones)
+// console.log(JSON.stringify(hailStones, undefined, 2))
+
+function getDiff(a: Position, b: Position) {
+  // console.log('diffing', a, b)
+  return {
+    x: a.x - b.x,
+    y: a.y - b.y,
+    z: a.z - b.z,
+  }
+}
+
+function stoneIsOutOfBounds(pos: Position) {
+  const max = getMax(hailStones);
+  if (pos.x >= max.x) return true;
+  if (pos.y >= max.y) return true;
+  if (pos.z >= max.z) return true;
+}
+
+function hasLine(time = 2, used: number[], diff: Position, prevPos: Position): boolean {
+  // This is where do the dfsing
+  console.log(used)
+  if (used.length === hailStones.length) return true
+  if (stoneIsOutOfBounds(prevPos)) return false
+  if (time + 1 >= hailStones[0].frames.length) {
+    console.log('no more frames') 
+    return false
+  }
+  return hailStones.filter(stone => !used.includes(stone.id)).some(stone => {
+    const newDiff = getDiff(prevPos, stone.frames[time + 1])
+    if (JSON.stringify(newDiff) === JSON.stringify(diff)) {
+      return hasLine(time + 1, used.concat(stone.id), diff, stone.frames[time + 1])
+    } else {
+    }
+  }) || hasLine(time + 1, used, diff, {
+      x: prevPos.x + diff.x,
+      y: prevPos.y + diff.y,
+      z: prevPos.z + diff.z,
+    })
+  
+  return true || undefined
+}
+
+function getMax(hailStones: Hail[]) {
+  return hailStones.reduce((max, hail) => {
+    hail.frames.forEach(frame => {
+      if (frame.x > max.x) max.x = frame.x
+      if (frame.y > max.y) max.y = frame.y
+      if (frame.z > max.z) max.z = frame.z
+    })
+    return max
+  }, { x: 0, y: 0, z: 0 })
+}
+
+let firstStone;
+let secondStone;
+hailStones.forEach(() => setNextFrame(hailStones))
+while (true) {
+  // There are many problems with this approach
+  // we are checking between frame 1 and frame 2, but what if frame 1 is right but we need frame 3 or more to continue the line, we'll never check that
+  const result = hailStones.find(hail1 => {
+    return hailStones.filter(stone => stone.id !== hail1.id).find(hail2 => {
+      const isLine = hasLine(2, [ hail1.id, hail2.id ], getDiff(hail1.frames[1], hail2.frames[2]), hail2.frames[2])
+      if (isLine) {
+        console.log('ANSWER')
+        firstStone = hail1
+        secondStone = hail2
+        return true
+      }
+    })
+  })
+  if (result) {
+    break;
+  } else {
+    console.log('MAKE MORE FRAMES')
+    setNextFrame(hailStones)
+  }
+}
+console.log(firstStone, secondStone)
+
+// function start() {
+//   hailStones.forEach(() => setNextFrame(hailStones))
+//   while (true) {
+//     const line = hasLine(hailStones)
+//     if (line) {
+//       return line
+//     }
+//     setNextFrame(hailStones)
+//     // break;
+//   }
+// }
 
 // Here's the plan:
 // First, generate our base data, if we have 6 stones, we need to generate at least t=6 worth of data
