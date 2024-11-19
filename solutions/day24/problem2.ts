@@ -106,7 +106,7 @@ const hailStones = fileContents
 // }
 
 function setNextFrame(stones: Hail[]) {
-  console.log('CREATED NEXT FRAME')
+  console.log('CREATED NEXT FRAME', stones[0].frames.length)
   stones.forEach(hail => {
     hail.frames.push({
       x: hail.frames[hail.frames.length - 1].x + hail.vel.x,
@@ -119,8 +119,14 @@ function setNextFrame(stones: Hail[]) {
 // setNextFrame(hailStones)
 // console.log(JSON.stringify(hailStones, undefined, 2))
 
-function getDiff(a: Position, b: Position) {
+// function getDiff(a: Position, b: Position) {
+function getDiff(a: Position, b: Position, step = 1) {
   // console.log('diffing', a, b)
+  return {
+    x: (b.x - a.x) / step,
+    y: (b.y - a.y) / step,
+    z: (b.z - a.z) / step,
+  }
   return {
     x: a.x - b.x,
     y: a.y - b.y,
@@ -133,15 +139,18 @@ function stoneIsOutOfBounds(pos: Position) {
   if (pos.x >= max.x) return true;
   if (pos.y >= max.y) return true;
   if (pos.z >= max.z) return true;
+  if (pos.x < 0) return true;
+  if (pos.y < 0) return true;
+  if (pos.z < 0) return true;
 }
 
 function hasLine(time = 2, used: number[], diff: Position, prevPos: Position): boolean {
   // This is where do the dfsing
-  console.log(used)
+  // console.log(used)
   if (used.length === hailStones.length) return true
   if (stoneIsOutOfBounds(prevPos)) return false
   if (time + 1 >= hailStones[0].frames.length) {
-    console.log('no more frames') 
+    // console.log('no more frames') 
     return false
   }
   return hailStones.filter(stone => !used.includes(stone.id)).some(stone => {
@@ -170,31 +179,140 @@ function getMax(hailStones: Hail[]) {
   }, { x: 0, y: 0, z: 0 })
 }
 
-let firstStone;
-let secondStone;
-hailStones.forEach(() => setNextFrame(hailStones))
-while (true) {
-  // There are many problems with this approach
-  // we are checking between frame 1 and frame 2, but what if frame 1 is right but we need frame 3 or more to continue the line, we'll never check that
-  const result = hailStones.find(hail1 => {
-    return hailStones.filter(stone => stone.id !== hail1.id).find(hail2 => {
-      const isLine = hasLine(2, [ hail1.id, hail2.id ], getDiff(hail1.frames[1], hail2.frames[2]), hail2.frames[2])
-      if (isLine) {
-        console.log('ANSWER')
-        firstStone = hail1
-        secondStone = hail2
-        return true
-      }
+// This is all the frames we need to solve the example
+for (let i = 0; i < 6; i++) {
+  setNextFrame(hailStones)
+}
+
+// function tracePath(hail1: Hail, time = 1, diff?: Position, prevPos?: Position) {
+//   const availableStones = hailStones.filter(stone => stone.id !== hail1.id);
+//   availableStones.forEach(hail2 => {
+//     if (!diff || !prevPos) {
+//       diff = getDiff(hail1.frames[time], hail2.frames[time + 1])
+//       return tracePath(hail2, time + 1, diff, hail2.frames[time + 1])
+//     } else {
+//       const newPos = {
+//         x: prevPos.x + diff.x,
+//         y: prevPos.y + diff.y,
+//         z: prevPos.z + diff.z,
+//       }
+//       availableStones.filter(stone => JSON.stringify(stone.frames[time + 1]) === JSON.stringify(newPos))
+//     }
+//   })
+// }
+
+function tracePath(time: number, used: number[], prevPos: Position, diff: Position) {
+  const newPos = {
+    x: prevPos.x + diff.x,
+    y: prevPos.y + diff.y,
+    z: prevPos.z + diff.z,
+  }
+  // console.log('checking pos', newPos, diff, prevPos)
+  // console.log('prevPos', JSON.stringify(prevPos))
+  // console.log('diff', JSON.stringify(diff))
+  // console.log('checking pos', JSON.stringify(newPos))
+  // console.log(time, used)
+  if (used.length === hailStones.length) {
+    console.log('YEEEEEEEEEEEEEEEHAW')
+    winner = true
+    console.log(hailStones[used[0]].frames[1], diff)
+    return true
+  }
+  if (stoneIsOutOfBounds(newPos)) {
+    // console.log('OUT OF BOUNDS')
+    return false
+  }
+
+  const nextStone = hailStones.filter(stone => !used.includes(stone.id)).find(stone => {
+    return JSON.stringify(stone.frames[time + 1]) === JSON.stringify(newPos)
+  })
+
+  if (nextStone) {
+    console.log('found next stone')
+    return tracePath(time + 1, used.concat(nextStone.id), newPos, diff)
+  } else {
+    return tracePath(time + 1, used, newPos, diff)
+  }
+
+  // hailStones.filter(stone => !used.includes(stone.id)).map(stone => {
+  //   if (JSON.stringify(stone.frames[time + 1]) === JSON.stringify(newPos)) {
+  //     return tracePath(time + 1, used.concat(stone.id), newPos, diff)
+  //   } else {
+  //   }
+  // })
+  // if (!found) {
+  //   return tracePath(time + 1, used, newPos, diff)
+  // }
+}
+
+// How do we exit this nested cluster as soon as we have a result?
+// Generate extra frames until we find our answer
+// Find ways to eliminate bad trajectories early
+//  - idk maybe consider memoization
+let winner = false;
+let result;
+const availableFrames = [ ...Array(hailStones[0].frames.length - 1).keys() ].map(i => i + 1)
+hailStones.forEach(hail1 => {
+  hailStones.filter(hail2 => hail2.id !== hail1.id).forEach(hail2 => {
+    availableFrames.forEach((time1, i) => {
+      availableFrames.slice(i + 1).forEach(time2 => {
+        // console.log(
+        //   'at root',
+        //   'time1', time1,
+        //   'time2', time2,
+        //   'stone1', hail1.id,
+        //   'stone2', hail2.id,
+        // )
+        const diff = getDiff(hail1.frames[time1], hail2.frames[time2], time2 - time1)
+        const answer = tracePath(time2, [ hail1.id, hail2.id ], hail2.frames[time2], diff)
+        if (answer) {
+          result = Object.keys(hail1.frames[time1]).reduce((total, coor) => {
+            // @ts-ignore
+            console.log(coor, hail1.frames[time1][coor] - (diff[coor] * time1))
+            // @ts-ignore
+            return total + hail1.frames[time1][coor] - (diff[coor] * time1)
+          }, 0)
+        }
+      })
     })
   })
-  if (result) {
-    break;
-  } else {
-    console.log('MAKE MORE FRAMES')
-    setNextFrame(hailStones)
-  }
-}
-console.log(firstStone, secondStone)
+  console.log('checked stone', hail1.id)
+})
+
+// tracePath(3, [ 4, 1 ], hailStones[1].frames[3], getDiff(hailStones[4].frames[1], hailStones[1].frames[3], 2))
+console.log('winner', winner)
+console.log(result)
+
+// let firstStone;
+// let secondStone;
+// hailStones.forEach(() => setNextFrame(hailStones))
+// while (true) {
+//   // There are many problems with this approach
+//   // we are checking between frame 1 and frame 2, but what if frame 1 is right but we need frame 3 or more to continue the line, we'll never check that
+//   const frameOpts = [ ...Array(hailStones[0].frames.length - 1).keys() ].map(i => i + 1)
+//   const result = hailStones.find(hail1 => {
+//     return hailStones.filter(stone => stone.id !== hail1.id).find(hail2 => {
+//       frameOpts.find((time1, i) => {
+//         frameOpts.slice(i + 1).find(time2 => {
+//           const isLine = hasLine(time2, [ hail1.id, hail2.id ], getDiff(hail1.frames[time1], hail2.frames[time2]), hail2.frames[time2])
+//           if (isLine) {
+//             console.log('ANSWER')
+//             firstStone = hail1
+//             secondStone = hail2
+//             return true
+//           }
+//         })
+//       })
+//     })
+//   })
+//   if (result) {
+//     break;
+//   } else {
+//     console.log('MAKE MORE FRAMES')
+//     setNextFrame(hailStones)
+//   }
+// }
+// console.log(firstStone, secondStone)
 
 // function start() {
 //   hailStones.forEach(() => setNextFrame(hailStones))
