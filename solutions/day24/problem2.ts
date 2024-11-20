@@ -36,8 +36,8 @@ type Hail = {
 //   return isInPast.some(func => func(hail, int))
 // }
 
-// const config = { fileName: 'inputs.txt', min: 200000000000000, max: 400000000000000 }
-const config = { fileName: 'example.txt', min: 7, max: 27 }
+const config = { fileName: 'inputs.txt', min: 200000000000000, max: 400000000000000 }
+// const config = { fileName: 'example.txt', min: 7, max: 27 }
 
 const fileContents = await Bun.file(config.fileName).text()
 
@@ -77,60 +77,28 @@ const hailStones = fileContents
 // }, 0)
 // console.log(answer, answer === 16172)
 
-// type Diff = { x: number, y: number, z: number }
-// function getDiff(a: Hail, b: Hail): Diff {
-//   return {
-//     x: a.vel.x - b.vel.x,
-//     y: a.vel.y - b.vel.y,
-//     z: a.vel.z - b.vel.z,
-//   }
-// }
-
-// function getAllPositions(stones: Hail[]) {
-//   const trajectories: Diff[][]  = []
-//   stones.forEach((hail1, i) => {
-//     trajectories.push(
-//       stones.map(hail2 => hail1 !== hail2 ? getDiff(hail1, hail2) : undefined).filter(diff => diff !== undefined) as Diff[]
-//     )
-//   })
-//   console.log(trajectories)
-// }
-// // getAllPositions(hailStones)
-// 
-// function findLine(diffs: Diff[][]) {
-//   return diffs.find(hailDiffs => {
-//     hailDiffs.find(diff => {
-//       const strDiff = JSON.stringify(diff)
-//     })
-//   })
-// }
-
-function setNextFrame(stones: Hail[]) {
-  console.log('CREATED NEXT FRAME', stones[0].frames.length)
-  stones.forEach(hail => {
-    hail.frames.push({
-      x: hail.frames[hail.frames.length - 1].x + hail.vel.x,
-      y: hail.frames[hail.frames.length - 1].y + hail.vel.y,
-      z: hail.frames[hail.frames.length - 1].z + hail.vel.z,
+function setNextFrame(stones: Hail[], newFrameCount = 1) {
+  // console.log('CREATED NEXT FRAME', stones[0].frames.length)
+  for (let i = 0; i < newFrameCount; i++) {
+    stones.forEach(hail => {
+      hail.frames.push({
+        x: hail.frames[hail.frames.length - 1].x + hail.vel.x,
+        y: hail.frames[hail.frames.length - 1].y + hail.vel.y,
+        z: hail.frames[hail.frames.length - 1].z + hail.vel.z,
+      })
     })
-  })
+  }
 }
 // console.log(JSON.stringify(hailStones, undefined, 2))
 // setNextFrame(hailStones)
 // console.log(JSON.stringify(hailStones, undefined, 2))
 
-// function getDiff(a: Position, b: Position) {
 function getDiff(a: Position, b: Position, step = 1) {
   // console.log('diffing', a, b)
   return {
     x: (b.x - a.x) / step,
     y: (b.y - a.y) / step,
     z: (b.z - a.z) / step,
-  }
-  return {
-    x: a.x - b.x,
-    y: a.y - b.y,
-    z: a.z - b.z,
   }
 }
 
@@ -144,30 +112,6 @@ function stoneIsOutOfBounds(pos: Position) {
   if (pos.z < 0) return true;
 }
 
-function hasLine(time = 2, used: number[], diff: Position, prevPos: Position): boolean {
-  // This is where do the dfsing
-  // console.log(used)
-  if (used.length === hailStones.length) return true
-  if (stoneIsOutOfBounds(prevPos)) return false
-  if (time + 1 >= hailStones[0].frames.length) {
-    // console.log('no more frames') 
-    return false
-  }
-  return hailStones.filter(stone => !used.includes(stone.id)).some(stone => {
-    const newDiff = getDiff(prevPos, stone.frames[time + 1])
-    if (JSON.stringify(newDiff) === JSON.stringify(diff)) {
-      return hasLine(time + 1, used.concat(stone.id), diff, stone.frames[time + 1])
-    } else {
-    }
-  }) || hasLine(time + 1, used, diff, {
-      x: prevPos.x + diff.x,
-      y: prevPos.y + diff.y,
-      z: prevPos.z + diff.z,
-    })
-  
-  return true || undefined
-}
-
 function getMax(hailStones: Hail[]) {
   return hailStones.reduce((max, hail) => {
     hail.frames.forEach(frame => {
@@ -179,29 +123,9 @@ function getMax(hailStones: Hail[]) {
   }, { x: 0, y: 0, z: 0 })
 }
 
-// This is all the frames we need to solve the example
-for (let i = 0; i < 6; i++) {
-  setNextFrame(hailStones)
-}
-
-// function tracePath(hail1: Hail, time = 1, diff?: Position, prevPos?: Position) {
-//   const availableStones = hailStones.filter(stone => stone.id !== hail1.id);
-//   availableStones.forEach(hail2 => {
-//     if (!diff || !prevPos) {
-//       diff = getDiff(hail1.frames[time], hail2.frames[time + 1])
-//       return tracePath(hail2, time + 1, diff, hail2.frames[time + 1])
-//     } else {
-//       const newPos = {
-//         x: prevPos.x + diff.x,
-//         y: prevPos.y + diff.y,
-//         z: prevPos.z + diff.z,
-//       }
-//       availableStones.filter(stone => JSON.stringify(stone.frames[time + 1]) === JSON.stringify(newPos))
-//     }
-//   })
-// }
-
-function tracePath(time: number, used: number[], prevPos: Position, diff: Position) {
+// function tracePath(time: number, used: number[], prevPos: Position, diff: Position) {
+function tracePath(time: number, used: number[], prevPos: Position, diff: Position, initStr: string) {
+  // prevPos is pos at time
   const newPos = {
     x: prevPos.x + diff.x,
     y: prevPos.y + diff.y,
@@ -218,113 +142,148 @@ function tracePath(time: number, used: number[], prevPos: Position, diff: Positi
     console.log(hailStones[used[0]].frames[1], diff)
     return true
   }
-  if (stoneIsOutOfBounds(newPos)) {
-    // console.log('OUT OF BOUNDS')
+
+  const needed = hailStones.length - used.length;
+  const timeLeft = hailStones[0].frames.length - time
+  if (needed > timeLeft) {
+    // if (time + used.length >= hailStones.length) {
+    //   console.log('also cant do it')
+    // }
     return false
   }
+  // if (time + used.length >= hailStones.length) {
+  //   console.log('cant do it')
+  //   return false
+  // }
 
+  // If future point is further apart, return false
+
+  // if (stoneIsOutOfBounds(newPos)) {
+  //   // console.log('OUT OF BOUNDS')
+  //   return false
+  // }
+
+  let fuckeryIndicator = false;
   const nextStone = hailStones.filter(stone => !used.includes(stone.id)).find(stone => {
+    const [ pastPos, currPos ] = [ stone.frames[time], stone.frames[time + 1] ]
+    // console.log(pastPos, currPos)
+    // if (currPos) {
+    //   console.log(
+    //     distanceBetweenPoints(pastPos, prevPos),
+    //     distanceBetweenPoints(currPos, newPos)
+    //   )
+    // }
+    if (currPos && distanceBetweenPoints(pastPos, prevPos) <= distanceBetweenPoints(currPos, newPos)) {
+      // If the stone is diverging, I think we can safely put it on the shit list (i.e. never check that combo again)
+      // console.log('fuckery indicator is indicating')
+      // console.log('found impossible')
+      fuckeryIndicator = true;
+      // impossible[initStr] = true;
+      impossible[`${used[0]}, ${used[1]}`]
+      // impossible.push(initStr)
+      return true
+    }
+
     return JSON.stringify(stone.frames[time + 1]) === JSON.stringify(newPos)
   })
 
-  if (nextStone) {
-    console.log('found next stone')
-    return tracePath(time + 1, used.concat(nextStone.id), newPos, diff)
-  } else {
-    return tracePath(time + 1, used, newPos, diff)
-  }
+  if (fuckeryIndicator) return false
 
-  // hailStones.filter(stone => !used.includes(stone.id)).map(stone => {
-  //   if (JSON.stringify(stone.frames[time + 1]) === JSON.stringify(newPos)) {
-  //     return tracePath(time + 1, used.concat(stone.id), newPos, diff)
-  //   } else {
-  //   }
-  // })
-  // if (!found) {
-  //   return tracePath(time + 1, used, newPos, diff)
-  // }
+  if (nextStone) {
+    // console.log('found next stone')
+    return tracePath(time + 1, used.concat(nextStone.id), newPos, diff, initStr)
+  } else {
+    return tracePath(time + 1, used, newPos, diff, initStr)
+  }
 }
+
+function distanceBetweenPoints(a: Position, b: Position) {
+  return ((a.x - b.x)**2 + (a.y - b.y)**2 + (a.z - b.z)**2)**0.5
+}
+
+// This is all the frames we need to solve the example
+// for (let i = 0; i < 3; i++) {
+//   setNextFrame(hailStones)
+// }
+// setNextFrame(hailStones, hailStones.length)
+setNextFrame(hailStones, 100)
 
 // How do we exit this nested cluster as soon as we have a result?
 // Generate extra frames until we find our answer
 // Find ways to eliminate bad trajectories early
 //  - idk maybe consider memoization
+// Checked up to t=1500, but there is a chance we missed the answer
+const startTime = Bun.nanoseconds();
+const newFrameCount = 200;
 let winner = false;
 let result;
+const impossible: { [key: string]: any } = {}
 const availableFrames = [ ...Array(hailStones[0].frames.length - 1).keys() ].map(i => i + 1)
-hailStones.forEach(hail1 => {
-  hailStones.filter(hail2 => hail2.id !== hail1.id).forEach(hail2 => {
-    availableFrames.forEach((time1, i) => {
-      availableFrames.slice(i + 1).forEach(time2 => {
-        // console.log(
-        //   'at root',
-        //   'time1', time1,
-        //   'time2', time2,
-        //   'stone1', hail1.id,
-        //   'stone2', hail2.id,
-        // )
-        const diff = getDiff(hail1.frames[time1], hail2.frames[time2], time2 - time1)
-        const answer = tracePath(time2, [ hail1.id, hail2.id ], hail2.frames[time2], diff)
-        if (answer) {
-          result = Object.keys(hail1.frames[time1]).reduce((total, coor) => {
-            // @ts-ignore
-            console.log(coor, hail1.frames[time1][coor] - (diff[coor] * time1))
-            // @ts-ignore
-            return total + hail1.frames[time1][coor] - (diff[coor] * time1)
-          }, 0)
-        }
+while (true) {
+  hailStones.some(hail1 => {
+    console.log('stone1', hail1.id)
+    return hailStones.filter(hail2 => hail2.id !== hail1.id).some(hail2 => {
+      // console.log('stone1', hail1.id, 'stone2', hail2.id)
+
+      // idk this might have been a bad idea
+      // Technically, at different times it could have a different trajectory
+      // But if we account for hail1.id, hail2.id, time1, and time2, that doesnt really eliminate many possibilities
+      if (impossible[`${hail1.id}, ${hail2.id}`]) return
+
+      return availableFrames.some((time1, i) => {
+        return availableFrames.slice(i + 1).some(time2 => {
+          // console.log(
+          //   'at root',
+          //   'time1', time1,
+          //   'time2', time2,
+          //   'stone1', hail1.id,
+          //   'stone2', hail2.id,
+          // )
+          const initStr = JSON.stringify([ time1, time2, hail1.id, hail2.id ])
+          // if (impossible[initStr]) {
+          if (impossible[`${hail1.id}, ${hail2.id}`]) {
+            // console.log('skipping')
+            return
+          }
+          const diff = getDiff(hail1.frames[time1], hail2.frames[time2], time2 - time1)
+          // const answer = tracePath(time2, [ hail1.id, hail2.id ], hail2.frames[time2], diff)
+          const answer = tracePath(time2, [ hail1.id, hail2.id ], hail2.frames[time2], diff, initStr)
+          if (answer) {
+            result = Object.keys(hail1.frames[time1]).reduce((total, coor) => {
+              // @ts-ignore
+              console.log(coor, hail1.frames[time1][coor] - (diff[coor] * time1))
+              // @ts-ignore
+              return total + hail1.frames[time1][coor] - (diff[coor] * time1)
+            }, 0)
+            return true
+          }
+        })
       })
     })
   })
-  console.log('checked stone', hail1.id)
-})
 
+  // if (hailStones[0].frames.length > 10) {
+  //   console.log('fuckery')
+  //   break;
+  // }
+  if (result) {
+    break;
+  } else {
+    console.log('generating more frames')
+    setNextFrame(hailStones, newFrameCount)
+  }
+}
 // tracePath(3, [ 4, 1 ], hailStones[1].frames[3], getDiff(hailStones[4].frames[1], hailStones[1].frames[3], 2))
+
+console.log(`Time: ${(Bun.nanoseconds() - startTime) / 10**9} seconds`)
 console.log('winner', winner)
 console.log(result)
-
-// let firstStone;
-// let secondStone;
-// hailStones.forEach(() => setNextFrame(hailStones))
-// while (true) {
-//   // There are many problems with this approach
-//   // we are checking between frame 1 and frame 2, but what if frame 1 is right but we need frame 3 or more to continue the line, we'll never check that
-//   const frameOpts = [ ...Array(hailStones[0].frames.length - 1).keys() ].map(i => i + 1)
-//   const result = hailStones.find(hail1 => {
-//     return hailStones.filter(stone => stone.id !== hail1.id).find(hail2 => {
-//       frameOpts.find((time1, i) => {
-//         frameOpts.slice(i + 1).find(time2 => {
-//           const isLine = hasLine(time2, [ hail1.id, hail2.id ], getDiff(hail1.frames[time1], hail2.frames[time2]), hail2.frames[time2])
-//           if (isLine) {
-//             console.log('ANSWER')
-//             firstStone = hail1
-//             secondStone = hail2
-//             return true
-//           }
-//         })
-//       })
-//     })
-//   })
-//   if (result) {
-//     break;
-//   } else {
-//     console.log('MAKE MORE FRAMES')
-//     setNextFrame(hailStones)
-//   }
-// }
-// console.log(firstStone, secondStone)
-
-// function start() {
-//   hailStones.forEach(() => setNextFrame(hailStones))
-//   while (true) {
-//     const line = hasLine(hailStones)
-//     if (line) {
-//       return line
-//     }
-//     setNextFrame(hailStones)
-//     // break;
-//   }
-// }
+// console.log(
+//   distanceBetweenPoints(
+//     { x: 17, y: 6, z: 2 },
+//     { x: 7, y: 4, z: 3 },
+//   )
+// )
 
 // Here's the plan:
 // First, generate our base data, if we have 6 stones, we need to generate at least t=6 worth of data
@@ -353,3 +312,6 @@ console.log(result)
 //  - Example also indicates no
 
 // ANSWER PART 1: 16172
+//
+//
+// IDK THIS IS WHERE U UNDO TO
