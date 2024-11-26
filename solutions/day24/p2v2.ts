@@ -66,9 +66,9 @@ function testLine(rock: Hail, stones: Hail[]) {
   const answer = stones.every(stone => {
     const time = getIntersection(rock, stone)
     if (time && !intersectionTimes.has(time)) {
-      process.stdout.write(`\r${successCount}`)
+      // process.stdout.write(`\r${successCount}`)
       successCount++
-      if (successCount > 2) console.log(successCount)
+      // if (successCount > 2) console.log(successCount)
       intersectionTimes.add(time)
       return true
     }
@@ -125,6 +125,60 @@ function findRock(timeStep: number, cache: Set<string>) {
   return finalRock;
 }
 
+// tested up until 36600, still no result
+function findRockV2(hail1: Hail, hail2: Hail, allHail: Hail[]) {
+  // const availableHail = allHail.filter(hail => ![ hail1.id, hail2.id ].includes(hail.id))
+  let maxTime = allHail.length;
+  while (true) {
+    for (let time1 = 1; time1 <= maxTime; time1++) {
+      for (let time2 = 1; time2 <= maxTime; time2++) {
+        if (time1 === time2) continue;
+        const rock = getRock(hail1, hail2, time1, time2);
+        // const rockStr = JSON.stringify(rock);
+        // // if (rockCache.has(rockStr)) {
+        // // if (rockCacheArr.includes(rockStr)) {
+        // if (rockCacheObj[rockStr]) {
+        //   // console.log('skipping')
+        //   skipCount++
+        //   continue;
+        // }
+        // const rock = getRock(
+        //   time1 < time2 ? hail1 : hail2,
+        //   time1 < time2 ? hail2 : hail1,
+        //   time1 < time2 ? time1 : time2,
+        //   time1 < time2 ? time2 : time1,
+        // )
+        if (testLine(rock, allHail)) {
+          return rock;
+        } else {
+          // rockCache.add(rockStr)
+          // rockCacheArr.push(rockStr)
+          // rockCacheObj[rockStr] = true
+        }
+      }
+    }
+    maxTime += allHail.length
+    // console.log('max time', maxTime)
+    process.stdout.write(`\rmax time: ${maxTime}, elapsed time: ${(Bun.nanoseconds() - startTime) / 10**9} cache: ${rockCache.size.toLocaleString()} skipCount: ${skipCount.toLocaleString()}`)
+  }
+}
+
+function testFindRockV2(hails: Hail[]) {
+  const answers: string[] = []
+  for (let hail1i = 0; hail1i < hails.length; hail1i++) {
+    for (let hail2i = 0; hail2i < hails.length; hail2i++) {
+      if (hail1i === hail2i) continue;
+      const rock = findRockV2(hails[hail1i], hails[hail2i], hails)
+      answers.push(JSON.stringify(rock))
+      console.log(`done ${hail1i} ${hail2i}`)
+    }
+  }
+  console.log(answers[0])
+  return answers.every(rock => {
+    return JSON.stringify(rock) === JSON.stringify(answers[0])
+  })
+}
+
 const startTime = Bun.nanoseconds();
 // const fileContents = await Bun.file('example.txt').text();
 const fileContents = await Bun.file('inputs.txt').text()
@@ -142,13 +196,18 @@ const hailStones = fileContents
   }
 })
 
-const cache = new Set<string>();
+// const cache = new Set<string>();
 const rockCache = new Set<string>();
-const rock = findRock(10, cache);
+// const rockCacheArr: string[] = [];
+// const rockCacheObj: { [key: string]: true } = {};
+// const rock = findRock(10, cache);
+const rock = findRockV2(hailStones[0], hailStones[1], hailStones)
+// console.log(testFindRockV2(hailStones));
 console.log(rock)
 console.log(rock.pos.x + rock.pos.y + rock.pos.z)
+console.log(`runtime: ${(Bun.nanoseconds() - startTime) / 10**9}`)
 // console.log(iterCount)
-console.log(skipCount)
+// console.log(skipCount)
 
 // const rock = getRock(hailStones[4], hailStones[1], 1, 3)
 // console.log(getIntersection(rock, hailStones[0]))
