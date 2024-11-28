@@ -3,6 +3,9 @@ type Hail = { vel: Position, pos: Position, id: number }
 type Axis = Array<keyof Position>
 
 function getDiff(a: Position, b: Position, step = 1) {
+  // if(((b.x - a.x) / step) % 1 !== 0) throw Error('fuckery');
+  // if(((b.y - a.y) / step) % 1 !== 0) throw Error('fuckery');
+  // if(((b.z - a.z) / step) % 1 !== 0) throw Error('fuckery');
   return {
     x: (b.x - a.x) / step,
     y: (b.y - a.y) / step,
@@ -129,16 +132,6 @@ function findRock(timeStep: number, cache: Set<string>) {
             // }
             // console.log(hail1.id, hail2.id, time1, time2)
             const rock = getRock(hail1, hail2, time1, time2)
-            if (
-              rock.pos.x % 1 !== 0 ||
-              rock.pos.y % 1 !== 0 ||
-              rock.pos.z % 1 !== 0 ||
-              rock.vel.x % 1 !== 0 ||
-              rock.vel.y % 1 !== 0 ||
-              rock.vel.z % 1 !== 0
-            ) {
-              throw Error('ROCK NOT INTEGER' + JSON.stringify(rock))
-            }
             // const rockStr = JSON.stringify(rock)
             const rockStr = `${rock.pos.x},${rock.pos.y},${rock.pos.z},${rock.vel.x},${rock.vel.y},${rock.vel.z}`
             if (rockCache.has(rockStr)) {
@@ -173,15 +166,15 @@ function checkForSkipage(rock: Hail, time1: number, time2: number) {
   })
 }
 
-// tested up until 48000, still no result
+// tested up until 50400, still no result
 function findRockV2(hail1: Hail, hail2: Hail, allHail: Hail[]) {
   // const availableHail = allHail.filter(hail => ![ hail1.id, hail2.id ].includes(hail.id))
   const testCache: true[][] = [];
   let maxTime = allHail.length;
+  // let maxTime = 50000;
   while (true) {
     for (let time1 = 1; time1 <= maxTime; time1++) {
       for (let time2 = 1; time2 <= maxTime; time2++) {
-      // for (let time2 = maxTime - allHail.length; time2 <= maxTime; time2++) {
         if (time1 === time2) continue;
         // if (testCache?.[time1]?.[time2]) {
         //   continue;
@@ -190,6 +183,17 @@ function findRockV2(hail1: Hail, hail2: Hail, allHail: Hail[]) {
         //   testCache[time1][time2] = true
         // }
         const rock = getRock(hail1, hail2, time1, time2);
+        if (
+          rock.pos.x % 1 !== 0 ||
+            rock.pos.y % 1 !== 0 ||
+            rock.pos.z % 1 !== 0 ||
+            rock.vel.x % 1 !== 0 ||
+            rock.vel.y % 1 !== 0 ||
+            rock.vel.z % 1 !== 0
+        ) {
+          continue;
+          // throw Error('ROCK NOT INTEGER' + JSON.stringify(rock))
+        }
         // if (checkForSkipage(rock, time1, time2)) continue;
         // console.log(rock)
         // const rockStr = JSON.stringify(rock);
@@ -236,8 +240,8 @@ function testFindRockV2(hails: Hail[]) {
 }
 
 const startTime = Bun.nanoseconds();
-const fileContents = await Bun.file('example.txt').text();
-// const fileContents = await Bun.file('inputs.txt').text()
+// const fileContents = await Bun.file('example.txt').text();
+const fileContents = await Bun.file('inputs.txt').text();
 
 const hailStones = fileContents
 .split(/\n/)
