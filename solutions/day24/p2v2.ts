@@ -3,9 +3,6 @@ type Hail = { vel: Position, pos: Position, id: number }
 type Axis = Array<keyof Position>
 
 function getDiff(a: Position, b: Position, step = 1) {
-  // if(((b.x - a.x) / step) % 1 !== 0) throw Error('fuckery');
-  // if(((b.y - a.y) / step) % 1 !== 0) throw Error('fuckery');
-  // if(((b.z - a.z) / step) % 1 !== 0) throw Error('fuckery');
   return {
     x: (b.x - a.x) / step,
     y: (b.y - a.y) / step,
@@ -63,35 +60,31 @@ function getIntersection(hail1: Hail, hail2: Hail) {
   return valid ? result : null
 }
 
-// const isCloseToInteger = (num) => Math.abs(num - Math.round(num)) < Number.EPSILON;
-// const result = isCloseToInteger(1.0000000000000002) ? Math.round(1.0000000000000002) : 1.0000000000000002;
-function precisionRounding(num: number) {
-  // console.log(num.toFixed(8), num, Math.abs(num - Math.round(num)) < Number.EPSILON)
-  // return Math.abs(num - Math.round(num)) < Number.EPSILON ? Math.round(num) : num
-  return Number(num.toFixed(8))
-}
-
-function getIntersectionV2(hail1: Hail, hail2: Hail) {
-  const s = precisionRounding(
-    (hail2.pos.y - ((hail1.vel.y * hail2.pos.x) / hail1.vel.x) + ((hail1.vel.y * hail1.pos.x) / hail1.vel.x) - hail1.pos.y) / (
-      ((hail1.vel.y * hail2.vel.x) / hail1.vel.x) - hail2.vel.y
-    )
-  )
-  // console.log('s', s)
-  if (s % 1 !== 0) return
-  const t = precisionRounding(
-    ((hail2.vel.x * s) + hail2.pos.x - hail1.pos.x) / hail1.vel.x
-  )
-  // console.log('t', t)
-  if (s !== t) return
-  const z1 = (hail1.vel.z * t) + hail1.pos.z  
-  const z2 = (hail2.vel.z * s) + hail2.pos.z
-  if (z1 !== z2) return
-  if ((hail1.vel.x * t + hail1.pos.x) % 1 !== 0) return
-  if ((hail1.vel.y * t + hail1.pos.y) % 1 !== 0) return
-  if ((hail1.vel.z * t + hail1.pos.z) % 1 !== 0) return
-  return t
-}
+// function precisionRounding(num: number) {
+//   return Number(num.toFixed(8))
+// }
+// 
+// function getIntersectionV2(hail1: Hail, hail2: Hail) {
+//   const s = precisionRounding(
+//     (hail2.pos.y - ((hail1.vel.y * hail2.pos.x) / hail1.vel.x) + ((hail1.vel.y * hail1.pos.x) / hail1.vel.x) - hail1.pos.y) / (
+//       ((hail1.vel.y * hail2.vel.x) / hail1.vel.x) - hail2.vel.y
+//     )
+//   )
+//   // console.log('s', s)
+//   if (s % 1 !== 0) return
+//   const t = precisionRounding(
+//     ((hail2.vel.x * s) + hail2.pos.x - hail1.pos.x) / hail1.vel.x
+//   )
+//   // console.log('t', t)
+//   if (s !== t) return
+//   const z1 = (hail1.vel.z * t) + hail1.pos.z  
+//   const z2 = (hail2.vel.z * s) + hail2.pos.z
+//   if (z1 !== z2) return
+//   if ((hail1.vel.x * t + hail1.pos.x) % 1 !== 0) return
+//   if ((hail1.vel.y * t + hail1.pos.y) % 1 !== 0) return
+//   if ((hail1.vel.z * t + hail1.pos.z) % 1 !== 0) return
+//   return t
+// }
 
 function testLine(rock: Hail, stones: Hail[]) {
   // let successCount = 0
@@ -113,58 +106,50 @@ function testLine(rock: Hail, stones: Hail[]) {
 }
 
 // let iterCount = 0
-let skipCount = 0;
-function findRock(timeStep: number, cache: Set<string>) {
-  let finalRock: Hail = {} as Hail;
-  let count = 1;
-  while (true) {
-    const timeSpan = timeStep * count
-    const foundLine = hailStones.some(hail1 => {
-      // console.log('checking', hail1.id)
-      return hailStones.some(hail2 => {
-        if (hail1 === hail2) return
-        for (let time1 = 1; time1 <= timeSpan; time1++) {
-          for (let time2 = time1 + 1; time2 <= timeSpan; time2++) {
-            // const initStr = `${hail1.id}, ${hail2.id}, ${time1}, ${time2}`
-            // if (cache.has(initStr)) {
-            //   skipCount++
-            //   continue
-            // }
-            // console.log(hail1.id, hail2.id, time1, time2)
-            const rock = getRock(hail1, hail2, time1, time2)
-            // const rockStr = JSON.stringify(rock)
-            const rockStr = `${rock.pos.x},${rock.pos.y},${rock.pos.z},${rock.vel.x},${rock.vel.y},${rock.vel.z}`
-            if (rockCache.has(rockStr)) {
-              console.log('skipping')
-              skipCount++
-              continue
-            }
-            if (testLine(rock, hailStones)) {
-              finalRock = rock;
-              return true
-            } else {
-              // cache.add(initStr)
-              rockCache.add(rockStr)
-            }
-            process.stdout.write(`\r${time1.toString().length === 1 ? ' ' : ''}${time1}/${timeSpan}, stone1: ${hail1.id}, stone2: ${hail2.id}`)
-            // iterCount++
-          }
-        }
-      })
-    })
-    if (foundLine) break;
-    console.log('checked up to', timeStep * count, 'skip count', skipCount, 'time', `${(Bun.nanoseconds() - startTime) / 10**9} seconds`)
-    count++
-  }
-  return finalRock;
-}
-
-function checkForSkipage(rock: Hail, time1: number, time2: number) {
-  const diff = time1 - time2
-  return ([ 'x', 'y', 'z' ] as Axis).every(axis => {
-    return rock.vel[axis] % diff === 0
-  })
-}
+// function findRock(timeStep: number, cache: Set<string>) {
+//   let finalRock: Hail = {} as Hail;
+//   let count = 1;
+//   while (true) {
+//     const timeSpan = timeStep * count
+//     const foundLine = hailStones.some(hail1 => {
+//       // console.log('checking', hail1.id)
+//       return hailStones.some(hail2 => {
+//         if (hail1 === hail2) return
+//         for (let time1 = 1; time1 <= timeSpan; time1++) {
+//           for (let time2 = time1 + 1; time2 <= timeSpan; time2++) {
+//             // const initStr = `${hail1.id}, ${hail2.id}, ${time1}, ${time2}`
+//             // if (cache.has(initStr)) {
+//             //   skipCount++
+//             //   continue
+//             // }
+//             // console.log(hail1.id, hail2.id, time1, time2)
+//             const rock = getRock(hail1, hail2, time1, time2)
+//             // const rockStr = JSON.stringify(rock)
+//             const rockStr = `${rock.pos.x},${rock.pos.y},${rock.pos.z},${rock.vel.x},${rock.vel.y},${rock.vel.z}`
+//             if (rockCache.has(rockStr)) {
+//               console.log('skipping')
+//               skipCount++
+//               continue
+//             }
+//             if (testLine(rock, hailStones)) {
+//               finalRock = rock;
+//               return true
+//             } else {
+//               // cache.add(initStr)
+//               rockCache.add(rockStr)
+//             }
+//             process.stdout.write(`\r${time1.toString().length === 1 ? ' ' : ''}${time1}/${timeSpan}, stone1: ${hail1.id}, stone2: ${hail2.id}`)
+//             // iterCount++
+//           }
+//         }
+//       })
+//     })
+//     if (foundLine) break;
+//     console.log('checked up to', timeStep * count, 'skip count', skipCount, 'time', `${(Bun.nanoseconds() - startTime) / 10**9} seconds`)
+//     count++
+//   }
+//   return finalRock;
+// }
 
 // tested up until 50400, still no result
 function findRockV2(hail1: Hail, hail2: Hail, allHail: Hail[]) {
@@ -222,13 +207,66 @@ function findRockV2(hail1: Hail, hail2: Hail, allHail: Hail[]) {
   }
 }
 
-function testFindRockV2(hails: Hail[]) {
+function testRock(hail1: Hail, hail2: Hail, time1: number, time2: number, allHail: Hail[]) {
+  const rock = getRock(hail1, hail2, time1, time2);
+  if (
+    rock.pos.x % 1 !== 0 ||
+      rock.pos.y % 1 !== 0 ||
+      rock.pos.z % 1 !== 0 ||
+      rock.vel.x % 1 !== 0 ||
+      rock.vel.y % 1 !== 0 ||
+      rock.vel.z % 1 !== 0
+  ) {
+    return
+  }
+  if (testLine(rock, allHail)) {
+    return rock;
+  }
+}
+
+// tested up to 401100, no result
+function findRockV3(hail1: Hail, hail2: Hail, allHail: Hail[]) {
+  let count = 1;
+  while (true) {
+    const maxTime = hailStones.length * count;
+    const smaller = maxTime - hailStones.length
+
+    for (let time1 = smaller + 1; time1 <= maxTime; time1++) {
+      for (let time2 = 1; time2 <= smaller; time2++) {
+        const result = testRock(hail1, hail2, time1, time2, allHail)
+        if (result) return result
+      }
+    }
+
+    for (let time1 = 1; time1 <= smaller; time1++) {
+      for (let time2 = smaller + 1; time2 <= maxTime; time2++) {
+        const result = testRock(hail1, hail2, time1, time2, allHail)
+        if (result) return result
+      }
+    }
+
+    for (let time1 = smaller; time1 <= maxTime; time1++) {
+      for (let time2 = smaller; time2 <= maxTime; time2++) {
+        if (time1 === time2) continue;
+        const result = testRock(hail1, hail2, time1, time2, allHail)
+        if (result) return result
+      }
+    }
+
+    count += 1;
+    process.stdout.write(`\rmax time: ${maxTime}, elapsed time: ${(Bun.nanoseconds() - startTime) / 10**9} cache: ${rockCache.size.toLocaleString()} skipCount: ${skipCount.toLocaleString()}, at ${new Date().toLocaleTimeString()}`)
+  }
+
+}
+
+function testFindRock(hails: Hail[]) {
   const answers: string[] = []
   for (let hail1i = 0; hail1i < hails.length; hail1i++) {
     for (let hail2i = 0; hail2i < hails.length; hail2i++) {
       if (hail1i === hail2i) continue;
       console.log(`testing ${hail1i} ${hail2i}`)
-      const rock = findRockV2(hails[hail1i], hails[hail2i], hails)
+      // const rock = findRockV2(hails[hail1i], hails[hail2i], hails)
+      const rock = findRockV3(hails[hail1i], hails[hail2i], hails)
       answers.push(JSON.stringify(rock))
       console.log(`done ${hail1i} ${hail2i}`)
     }
@@ -256,11 +294,12 @@ const hailStones = fileContents
   }
 })
 
+let skipCount = 0;
 // const cache = new Set<string>();
 const rockCache = new Set<string>();
 // const rock = findRock(10, cache);
-const rock = findRockV2(hailStones[0], hailStones[1], hailStones)
-// // const rock = findRockV2(hailStones[4], hailStones[1], hailStones)
+// const rock = findRockV2(hailStones[0], hailStones[1], hailStones)
+const rock = findRockV3(hailStones[0], hailStones[1], hailStones)
 console.log(rock)
 console.log(rock.pos.x + rock.pos.y + rock.pos.z)
 console.log(`runtime: ${(Bun.nanoseconds() - startTime) / 10**9}`)
@@ -269,7 +308,7 @@ console.log(`runtime: ${(Bun.nanoseconds() - startTime) / 10**9}`)
 
 // console.log(findRockV2(hailStones[3], hailStones[1], hailStones))
 
-// console.log(testFindRockV2(hailStones));
+// console.log(testFindRock(hailStones));
 // console.log(findRockV2(hailStones[4], hailStones[1], hailStones))
 // const testRock = getRock(
 //   hailStones[4],
