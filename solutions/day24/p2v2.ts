@@ -87,7 +87,7 @@ function getIntersection(hail1: Hail, hail2: Hail) {
 // }
 
 function testLine(rock: Hail, stones: Hail[]) {
-  // let successCount = 0
+  let successCount = 0
   const intersectionTimes = new Set<number>()
   const answer = stones.every(stone => {
     const time = getIntersection(rock, stone)
@@ -95,7 +95,7 @@ function testLine(rock: Hail, stones: Hail[]) {
     if (time && !intersectionTimes.has(time)) {
       // process.stdout.write(`\r${successCount}`)
       // successCount++
-      // if (successCount > 2) console.log(successCount)
+      if (successCount > 0) console.log(successCount)
       intersectionTimes.add(time)
       return true
     }
@@ -229,7 +229,7 @@ function findRockV3(hail1: Hail, hail2: Hail, allHail: Hail[]) {
   let count = 1;
   while (true) {
     const maxTime = hailStones.length * count;
-    const smaller = maxTime - hailStones.length
+    const smaller = maxTime - hailStones.length;
 
     for (let time1 = smaller + 1; time1 <= maxTime; time1++) {
       for (let time2 = 1; time2 <= smaller; time2++) {

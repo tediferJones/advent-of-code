@@ -1,11 +1,14 @@
 {
   "name": "advent-of-code-2023",
   "module": "index.ts",
-  "type": "module",
   "devDependencies": {
     "bun-types": "latest"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
+  },
+  "type": "module",
+  "dependencies": {
+    "mathjs": "^14.0.0"
   }
 }
