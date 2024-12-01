@@ -7,8 +7,5 @@
   "peerDependencies": {
     "typescript": "^5.0.0"
   },
-  "type": "module",
-  "dependencies": {
-    "mathjs": "^14.0.0"
-  }
+  "type": "module"
 }
