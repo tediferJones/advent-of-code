@@ -84,55 +84,47 @@ function charAtPos(grid: (string|undefined)[][], pos: Position) {
 
 function mergePaths(paths: string[][], result = ''): string[] {
   if (paths.length === 0) return [ result ]
-  return paths[0].map(path => {
-    return mergePaths(paths.slice(1), result + path)
-  }).flat()
+  return paths[0]
+    .map(path => mergePaths(paths.slice(1), result + path))
+    .flat()
 }
 
 function findShortestPath(num: string, paths: PathsObj) {
   let prev = 'A'
-  const idk = num.split('').map(digit => {
+  return num.split('').map(digit => {
     const temp = paths[`${prev},${digit}`]
-    if (!temp) {
-      console.log(`${prev},${digit}`)
-      throw Error('cant find path')
-    }
     prev = digit
     return temp
   })
-  return idk
 }
 
-function getComplexity(num: string, maxDepth: number, depth = 0): number[] {
-  if (depth === maxDepth) return [ num.length ]
-  if (depth === 0) {
-    const bestPaths = findShortestPath(num, numpadPaths)
-    const allPaths = mergePaths(bestPaths)
-    return allPaths.map(path => {
-      const result = getComplexity(path, maxDepth, depth + 1)
-      return result
-    }).flat()
-  }
-  const bestpaths = findShortestPath(num, dirpadPaths)
-  const allPaths = mergePaths(bestpaths)
-  return allPaths.map(path => {
-    const result = getComplexity(path, maxDepth, depth + 1)
-    return result
-  }).flat()
+function findAndMerge(str: string, paths: string) {
+  return mergePaths(findShortestPath(str, pathsLookup[paths]))
 }
 
+function getComplexity(num: string, maxDepth: number, depth = 0): number {
+  if (depth === maxDepth) return num.length
+  return findAndMerge(num, depth === 0 ? 'numpadPaths' : 'dirpadPaths')
+    .map(path => getComplexity(path, maxDepth, depth + 1))
+    .flat().toSorted((a, b) => a - b)[0]
+}
+
+// let timeSpent = 0;
 const startTime = Bun.nanoseconds();
-const numpadPaths: PathsObj = allPaths(numpad)
-const dirpadPaths: PathsObj = allPaths(dirpad)
+const pathsLookup: { [key: string]: PathsObj } = {
+  numpadPaths: allPaths(numpad),
+  dirpadPaths: allPaths(dirpad)
+}
 const answer = (
   (await Bun.file(process.argv[2]).text())
   .split(/\n/)
   .filter(Boolean)
   .reduce((total, number) => {
-    const result = getComplexity(number, 3).toSorted((a, b) => a - b)[0]
+    const result = getComplexity(number, 3) // .toSorted((a, b) => a - b)[0]
     console.log(number, result, parseInt(number))
     return total + parseInt(number) * result
   }, 0)
 )
 console.log(answer, [ 126384, 94284 ].includes(answer))
 console.log(`TIME: ${(Bun.nanoseconds() - startTime) / 10**9} seconds`)
+// console.log(`time spent finding/merging, ${timeSpent / 10**9}`)
