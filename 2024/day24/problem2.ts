@@ -28,18 +28,43 @@ function getDesiredAnswer(nodes: Record<string, number>) {
       result[type][Number(index)] = val
     }
   })
-  return Number(`0b${result.x.join('')}`) + Number(`0b${result.y.join('')}`)
+  return Number(`0b${result.x.toReversed().join('')}`) + Number(`0b${result.y.toReversed().join('')}`)
 }
 
-function findSwaps(nodes: Record<string, number>) {
-  const keys = Object.keys(nodes)
+function getCopy(item: any) {
+  return JSON.parse(JSON.stringify(item))
+}
 
+function findSwaps(nodes: Record<string, number>, flows: string[][]) {
+  const keys = Object.keys(nodes)
+  const lookingFor = getDesiredAnswer(nodes)
+  const set = new Set<string>()
+  console.log('looking for', lookingFor)
+  // this only checks 2 pairs (4 wires), we need to check 4 pairs (8 wires)
+  return keys.some((key, i) => {
+    return keys.slice(i + 1).some((key2, j) => {
+      console.log(i, j)
+      return keys.slice(j + 1).some((key3, k) => {
+        return keys.slice(k + 1).some((key4, l) => {
+          // console.log(i, j, k, l)
+          const strId = `${[key, key2].toSorted().join('')}:${[key3, key4].toSorted().join('')}`
+          if (set.has(strId)) return // console.log('skipping')
+          set.add(strId)
+          const nodesCopy = getCopy(nodes)
+          const flowCopy = getCopy(flows)
+          swapFlows(flowCopy, key, key2)
+          swapFlows(flowCopy, key3, key4)
+          return solve(flowCopy, nodesCopy) === lookingFor
+        })
+      })
+    })
+  })
 }
 
 function swapFlows(flows: string[][], name1: string, name2: string) {
   const first = flows.findIndex(flow => flow[3] === name1)
   const second = flows.findIndex(flow => flow[3] === name2)
-  // const temp = flows[first]
+  if (first === -1 || second === -1) return
   flows[first][3] = name2
   flows[second][3] = name1
 }
@@ -58,14 +83,19 @@ const allFlow = flow.split(/\n/).filter(Boolean).reduce((allFlow, line) => {
   return allFlow
 }, [] as string[][])
 
-const part1 = solve(JSON.parse(JSON.stringify(allFlow)), nodes)
+const part1 = solve(getCopy(allFlow), getCopy(nodes))
 console.log(part1, [ 4, 2024, 65635066541798 ].includes(part1))
 
-// console.log(allFlow)
-// swapFlows(allFlow, 'z00', 'z05')
+// const lookingFor = getDesiredAnswer(nodes)
+// console.log(lookingFor)
+// const currentResult = solve(getCopy(allFlow), nodes)
+// console.log(currentResult)
+// console.log((currentResult >>> 0).toString(2))
+// console.log(Object.keys(nodes).filter(name => name[0] === 'z').toReversed().map(name => nodes[name]).join(''))
+// console.log(findSwaps(nodes, allFlow))
+
+// EXAMPLE 3
+// swapFlows(allFlow, 'z05', 'z00')
 // swapFlows(allFlow, 'z02', 'z01')
-// console.log(solve(allFlow, nodes))
+// solve(allFlow, nodes)
 // console.log(nodes)
-// // console.log(nodes)
-// const temp = getDesiredAnswer(nodes)
-// console.log(temp)
