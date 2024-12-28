@@ -158,6 +158,211 @@ function solvePart2(allFlow: string[][], nodes: Record<string, number>) {
   // console.log('children', getChildren(allFlow, 'wrb'))
 }
 
+// pretty sure we only need to track longCarry and tempResult
+// result is almost certainly not needed
+type Bit = {
+  result: string,
+  tempResult: string,
+  carryBit: string,
+  longCarry: string,
+}
+type Ops = 'AND' | 'OR' | 'XOR'
+type Flow = {
+  op: Ops,
+  operands: string[],
+  output: string
+}
+type FlowsObj = Record<string, Flow>
+function solvePart2V2(nodes: Record<string, number>, flows: string[][]) {
+  // get these keys, sort alphabetically, join with commas, and we might just have our answer
+  // swapFlows(flows, 'z12', 'fgc')
+  // swapFlows(flows, 'z29', 'mtj')
+  // swapFlows(flows, 'dgr', 'vvm')
+  // swapFlows(flows, 'dtv', 'z37')
+
+  const swaps = [
+    [ 'z12', 'fgc' ],
+    [ 'z29', 'mtj' ],
+    [ 'dgr', 'vvm' ],
+    [ 'dtv', 'z37' ],
+  ] as [string, string][]
+
+  swaps.forEach(swap => swapFlows(flows, ...swap))
+
+  const flowsObj = flows.reduce((obj, flow) => {
+    obj[flow[3]] = {
+      op: flow[1] as Ops,
+      operands: [ flow[0], flow[2] ],
+      output: flow[3],
+    }
+    return obj
+  }, {} as FlowsObj)
+  // console.log(flowsObj)
+  const initial: Bit[] = []
+  initial.push({ result: 'z00' } as Bit)
+  // initial.push({ result: 'z01', carryBit: 'njb', tempResult: 'tkb' } as Bit)
+  initial.push({ result: 'z01', longCarry: 'njb', tempResult: 'tkb' } as Bit)
+  // console.log(flowsObj['z01'])
+  // console.log('CHECKING 2')
+  // const check2 = verifyBit(2, flowsObj, initial)
+  // console.log(check2)
+  // console.log('CHECKING 3')
+  // const check3 = verifyBit(3, flowsObj, initial)
+  // console.log(check3)
+  // console.log('CHECKING 4')
+  // const check4 = verifyBit(4, flowsObj, initial)
+  // console.log(check4)
+
+  // manually determine swaps via console.log outputs
+  // add a new swap once determined and try again
+  // check number should get higher every time
+  //
+  // (carryBit z03 OR (temp result z03 AND longCarry z03)) XOR (temp result z04)
+  // = longCarry XOR tempResult
+  //
+  // SOLVE FOR z12
+  // tempResult = qts
+  // prevTempResult = qqn
+  // prevLongCarry = tnj
+  // andOfPrev = njh
+  // longCarry = jmr
+  // jmr XOR qts = z12 but it actually points to fgc
+  // so swap fgc and z12? (that worked)
+  //
+  // SOLVE FOR z29
+  // y29 XOR x29 -> vkb // tempResult
+  // x28 AND y28 -> jvp // carryBit
+  // gwd // prevTempResult
+  // rhr // prevLongCarry
+  // gwd AND rhr -> rjs // andOfPrev
+  // jvp OR rjs -> jfk
+  //
+  // vkb = tempResult
+  //
+  // rjs OR jvp = jfk // longCarry
+  // jfk XOR vkb = z29 (should be)
+  // vkb XOR jfk -> mtj (actual)
+  // swap mtj and z29? (that worked)
+  //
+  // SOLVE FOR z33
+  // y33 XOR x33 -> vvm // tempResult
+  // x32 AND y32 -> gtw // carryBit
+  // dtp AND hdp -> wng // andOfPrev
+  // wng OR gtw -> rrd // longCarry
+  // dgr XOR rrd = z33 (actual)
+  // swap dgr and vvm?
+  //
+  // SOLVE FOR z37
+  // y37 XOR x37 -> bkj // tempResult
+  // y36 AND x36 -> rkd // carryBit
+  // mbs AND kvv -> gvm // andOfPrev
+  // rkd OR gvm -> fhq // longCarry
+  // fhq XOR bkj = z37 (should be)
+  // bkj XOR fhq -> dtv (actual)
+  // swap dtv and z37?
+  //
+  // THE REAL FORMULA
+  // longCarry XOR tempResult = result
+  // xNum XOR yNum = tempResult
+  // andOfPrev OR carryBit = longCarry
+  // xNum-1 AND yNum-1 = carrybit
+  // prevTempResult AND prevLongCarry = andOfPrev
+  for (let i = 2; i < 45; i++) {
+    console.log(`CHECKING ${i}`)
+    const check = verifyBit(i, flowsObj, initial)
+    console.log('result', check)
+    if (!check) break
+    if (i === 44) console.log('WINNER WINNER, CHICKEN DINNER')
+  }
+}
+
+function verifyBit(num: number, flows: Record<string, Flow>, init: Bit[]) {
+  const key = 'z' + num.toString().padStart(2, '0')
+  // console.log(key)
+  const root = flows[key]
+  if (root.op !== 'XOR') return console.log('ROOT OP IS NOT XOR', root, init)
+
+  const first = flows[root.operands[0]]
+  const second = flows[root.operands[1]]
+  console.log(init)
+  console.log('root', root)
+  console.log('first', first)
+  console.log('second', second)
+  // const isValid = (
+  //   isTempResult(num, first) && isLongCarry(num, second, flows, init)
+  //   || isTempResult(num, second) && isLongCarry(num, first, flows, init)
+  // )
+  if (isTempResult(num, first)) {
+    const longCarry = isLongCarry(num, second, flows, init)
+    if (!longCarry) return console.log('first is temp result, second is not long carry')
+    init.push({
+      tempResult: root.operands[0],
+      longCarry: root.operands[1],
+      carryBit: longCarry.carryBit,
+      result: root.output
+    })
+    return true
+  }
+  if (isTempResult(num, second)) {
+    const longCarry = isLongCarry(num, first, flows, init)
+    console.log(first)
+    if (!longCarry) return console.log('second is temp result, first is not long carry')
+    init.push({
+      tempResult: root.operands[1],
+      longCarry: root.operands[0],
+      carryBit: longCarry.carryBit,
+      result: root.output
+    })
+    return true
+  }
+  console.log('neither first nor second is tempResult')
+  // console.log(isValid)
+  // console.log(isCarryBit(num, second))
+}
+
+function isCarryBit(num: number, flow: Flow) {
+  return flow.op === 'AND' && flow.operands.map(reg => Number(reg.slice(1))).every(regNum => regNum === num - 1)
+}
+
+function isLongCarry(num: number, flow: Flow, flows: FlowsObj, init: Bit[]) {
+  console.log('~~~~~~~~')
+  console.log('long carry', flow)
+  console.log('first is carryBit', isCarryBit(num, flows[flow.operands[0]]))
+  console.log('second is andOfPrev', init, flows[flow.operands[1]])// andOfPrev(flows[flow.operands[1]], init[num - 1]))
+  console.log('~~~~~~~~')
+  if (flow.op !== 'OR') return
+  if (isCarryBit(num, flows[flow.operands[0]]) && andOfPrev(flows[flow.operands[1]], init[num - 1])) {
+    return {
+      carryBit: flow.operands[0],
+      andOfPrev: flow.operands[1]
+    }
+  }
+  if (isCarryBit(num, flows[flow.operands[1]]) && andOfPrev(flows[flow.operands[0]], init[num - 1])) {
+    return {
+      carryBit: flow.operands[1],
+      andOfPrev: flow.operands[0]
+    }
+  }
+  // return flow.op === 'OR' && (
+  //   isCarryBit(num, flows[flow.operands[0]]) && andOfPrev(flows[flow.operands[1]], init[num - 1])
+  // ) || (
+  //   isCarryBit(num, flows[flow.operands[1]]) && andOfPrev(flows[flow.operands[0]], init[num - 1])
+  // )
+}
+
+function andOfPrev(flow: Flow, prevBit: Bit) {
+  return flow.op === 'AND' && (
+    // (flow.operands[0] === prevBit.carryBit && flow.operands[1] === prevBit.tempResult)
+    // || (flow.operands[1] === prevBit.carryBit && flow.operands[0] === prevBit.tempResult) 
+    (flow.operands[0] === prevBit.longCarry && flow.operands[1] === prevBit.tempResult)
+    || (flow.operands[1] === prevBit.longCarry && flow.operands[0] === prevBit.tempResult) 
+  )
+}
+
+function isTempResult(num: number, flow: Flow) {
+  return flow.op === 'XOR' && flow.operands.map(operand => Number(operand.slice(1))).every(operand => operand === num)
+}
+
 const [ init, flow ] = (await Bun.file(process.argv[2]).text()).split(/\n\n/)
 
 const nodes = init.split(/\n/).filter(Boolean).reduce((nodes, line) => {
@@ -175,7 +380,8 @@ const allFlow = flow.split(/\n/).filter(Boolean).reduce((allFlow, line) => {
 const part1 = solve(getCopy(allFlow), getCopy(nodes))
 console.log(part1, [ 4, 2024, 65635066541798 ].includes(part1))
 
-console.log(solvePart2(allFlow, nodes))
+// console.log(solvePart2(allFlow, nodes))
+console.log(solvePart2V2(getCopy(nodes), getCopy(allFlow)))
 
 // function addBin(bin1: string, bin2: string) {
 //   return (Number(`0b${bin1}`) + Number(`0b${bin2}`)).toString(2)
