@@ -70,11 +70,11 @@ function findStart(map: string[][]) {
   return { pos: { row, col }, char }
 }
 
-type PathState = { pos: Position, dir: DirChars, path: (string|number)[], visited: Set<string> } 
+type PathState = { pos: Position, dir: DirChars, path: (string|number)[], visited: Set<string>, intCount: number } 
 function getPaths(map: string[][], intersections: [number, number][]) {
   const intSet = new Set(intersections.map(int => JSON.stringify(int)))
   const { pos, char } = findStart(map)
-  const queue: PathState[] = [ { pos, dir: char, path: [], visited: new Set() } ]
+  const queue: PathState[] = [ { pos, dir: char, path: [], visited: new Set(), intCount: 0 } ]
   const endPos = { row: 28, col: 4 }
   // const endPos = { row: 2, col: 0 }
   const paths: PathState[] = []
@@ -97,7 +97,12 @@ function getPaths(map: string[][], intersections: [number, number][]) {
     }
     // current.visited.add(JSON.stringify(nextStep))
     if (!intSet.has(JSON.stringify([nextStep.row, nextStep.col]))) {
-      current.visited.add(JSON.stringify(nextStep))
+      if (charAtPos(map, nextStep) === '#') {
+        current.visited.add(JSON.stringify(nextStep))
+      }
+    }
+    if (intSet.has(JSON.stringify([nextStep.row, nextStep.col]))) {
+      current.intCount++
     }
     const nextChar = charAtPos(map, nextStep)
     if (nextChar !== '#') { // handle turns
@@ -110,7 +115,8 @@ function getPaths(map: string[][], intersections: [number, number][]) {
             pos: current.pos,
             dir: newDir,
             path: current.path.concat(key),
-            visited: new Set(current.visited)
+            visited: new Set(current.visited),
+            intCount: current.intCount
           })
         }
       })
@@ -126,7 +132,8 @@ function getPaths(map: string[][], intersections: [number, number][]) {
               pos: current.pos,
               dir: newDir,
               path: current.path.concat(key),
-              visited: new Set(current.visited)
+              visited: new Set(current.visited),
+              intCount: current.intCount
             })
           }
         })
@@ -210,10 +217,95 @@ function getPaths(map: string[][], intersections: [number, number][]) {
 //   return paths
 // }
 
+// const idk: any[] = []
+// function findPathPattern(path: string, patterns: string[] = []): undefined | string[] {
+//   const maxCharsPerPattern = 20
+//   // console.log(paths.join(','))
+//   if (patterns.length > 3) return
+//   if (path.length === 0) {
+//     console.log('FOUND')
+//     idk.push(patterns)
+//     return patterns 
+//   }
+//   
+//   if (patterns.includes('R,8,R,8') && patterns.includes('R,4,R,4,R,8') && patterns.includes('L,6,L,2')) {
+//     console.log(path, patterns)
+//   }
+// 
+//   const reusePattern = patterns.find(pattern => {
+//     return path.slice(0, pattern.length) === pattern
+//   })
+//   if (reusePattern) {
+//     // console.log('REUSE PATTERN', reusePattern, path, path.slice(reusePattern.length))
+//     return findPathPattern(path.slice(reusePattern.length + 1), patterns)
+//   }
+// 
+//   // for (let i = maxCharsPerPattern; i > 0; i--) {
+//   //   // const tempPattern = path.slice(0, i)
+//   //   if (path[i] !== ',') continue
+//   //   // console.log('TESTING PATTERN', path.slice(0, i), patterns)
+//   //   const result = findPathPattern(path.slice(i + 1), patterns.concat(path.slice(0, i)))
+//   //   if (result) return result
+//   // }
+//   for (let i = 0; i <= maxCharsPerPattern; i++) {
+//     // const tempPattern = path.slice(0, i)
+//     if (path[i] !== ',') continue
+//     // console.log('TESTING PATTERN', path.slice(0, i), patterns)
+//     const result = findPathPattern(path.slice(i + 1), patterns.concat(path.slice(0, i)))
+//     if (result) return result
+//   }
+// }
 
+const idk: any[] = []
+type Pattern = Record<string, number>
+function findPathPattern(path: string, patterns: Pattern = {}): undefined | Pattern {
+  const maxCharsPerPattern = 20
+  // console.log(paths.join(','))
+  if (Object.keys(patterns).length > 3) return
+  if (Object.values(patterns).reduce((total, num) => total + num, 0) >= 10) {
+    return
+  }
+  if (path.length === 0) {
+    console.log('FOUND')
+    idk.push(patterns)
+    return patterns 
+  }
+  
+  // if (patterns.includes('R,8,R,8') && patterns.includes('R,4,R,4,R,8') && patterns.includes('L,6,L,2')) {
+  //   console.log(path, patterns)
+  // }
 
-function findPathPattern(paths: (string|number)[][]) {
-  console.log(paths)
+  const reusePattern = Object.keys(patterns).find(pattern => {
+    return path.slice(0, pattern.length) === pattern
+  })
+  if (reusePattern) {
+    // console.log('REUSE PATTERN', reusePattern, path, path.slice(reusePattern.length))
+    return findPathPattern(path.slice(reusePattern.length + 1), {  ...patterns, [reusePattern]: patterns[reusePattern] + 1})
+  }
+
+  // for (let i = maxCharsPerPattern; i > 0; i--) {
+  //   // const tempPattern = path.slice(0, i)
+  //   if (path[i] !== ',') continue
+  //   // console.log('TESTING PATTERN', path.slice(0, i), patterns)
+  //   const result = findPathPattern(path.slice(i + 1), patterns.concat(path.slice(0, i)))
+  //   if (result) return result
+  // }
+  for (let i = 0; i <= maxCharsPerPattern; i++) {
+    // const tempPattern = path.slice(0, i)
+    if (path[i] !== ',') continue
+    // console.log('TESTING PATTERN', path.slice(0, i), patterns)
+    // const result = findPathPattern(path.slice(i + 1), patterns.concat(path.slice(0, i)))
+    const result = findPathPattern(path.slice(i + 1),  { ...patterns, [path.slice(0, i)]: 1 })
+    if (result) return result
+  }
+}
+
+function showPath(map: string[][], visited: Position[]) {
+  // console.log(visited)
+  const mapCopy: string[][] = JSON.parse(JSON.stringify(map))
+  visited.forEach(pos => mapCopy[pos.row][pos.col] = '$')
+  mapCopy.forEach(row => console.log(row.join('')))
+  console.log('~~~~~~~~')
 }
 
 const program = (await Bun.file(process.argv[2]).text()).split(/,/).map(Number)
@@ -232,12 +324,21 @@ console.log('PATHS', paths.length)
 // paths.forEach(path => console.log(path.visited.size))
 const minPathLength = map.reduce((count, row) => {
   return count + row.reduce((miniTotal, cell) => miniTotal + Number(cell === '#'), 0) 
-}, 0) + intersections.length
+}, 0)//  + intersections.length
 console.log(minPathLength)
 // const mostSteps = Math.max(...paths.map(path => path.visited.size))
 // const longestPath = paths.find(path => path.visited.size === mostSteps)
-const longestPath = paths.filter(path => path.visited.size >= minPathLength)
-console.log(longestPath.map(path => path.path))
+const validPaths = paths.filter(path => path.visited.size + path.intCount >= minPathLength)
+console.log(validPaths.map(path => path.path))
+// console.log(validPaths.map(path => findPathPattern(path.path.join(','))))
+
+validPaths.forEach(path => showPath(map, [ ...path.visited ].map(pos => JSON.parse(pos))))
+// paths.forEach(path => showPath(map, [ ...path.visited ].map(pos => JSON.parse(pos))))
+
+console.log(paths.map(path => findPathPattern(path.path.join(','))))
+// console.log(findPathPattern(validPaths[0].path.join(',')))
+// console.log(findPathPattern('R,8,R,8,R,4,R,4,R,8,L,6,L,2,R,4,R,4,R,8,R,8,R,8,L,6,L,2'))
+// idk.forEach(idk2 => console.log(idk2))
 // const bestPath = findPathPattern(paths.map(path => path.path))
 // const test = runIntCode(program.with(0, 2), 0, [ 'A,A,B,C\n', 'R,12,L,10,L,10,L,6,L,12,R,12,L,4' ])
 // console.log(test)
