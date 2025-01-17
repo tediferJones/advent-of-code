@@ -58,7 +58,6 @@ function getIntersections(map: string[][]) {
 function solvePart1(intersections: Position[]) {
   return intersections.reduce((total, int) => {
     return total + int.row * int.col
-    // return total + int.reduce((val, i) => val * i, 1)
   }, 0)
 }
 
@@ -71,40 +70,33 @@ function findStart(map: string[][]) {
   return { pos: { row, col }, char }
 }
 
-function findPathPattern(path: string, patterns: string[] = []): undefined | string[] {
-  const maxCharsPerPattern = 100
-  // console.log(paths.join(','))
-  if (patterns.length > 3) return
-  if (path.length === 0) {
-    console.log('FOUND')
-    return patterns 
-  }
+// function findPathPattern(path: string, patterns: string[] = []): undefined | string[] {
+//   const maxCharsPerPattern = 100
+//   // console.log(paths.join(','))
+//   if (patterns.length > 3) return
+//   if (path.length === 0) {
+//     console.log('FOUND')
+//     return patterns 
+//   }
+// 
+//   const reusePattern = patterns.find(pattern => {
+//     return path.slice(0, pattern.length) === pattern
+//   })
+//   if (reusePattern) {
+//     // console.log('REUSE PATTERN', reusePattern, path, path.slice(reusePattern.length))
+//     return findPathPattern(path.slice(reusePattern.length), patterns)
+//   }
+// 
+//   for (let i = maxCharsPerPattern; i > 0; i--) {
+//     // const tempPattern = path.slice(0, i)
+//     if (path[i] !== ',') continue
+//     // console.log('TESTING PATTERN', path.slice(0, i), patterns)
+//     const result = findPathPattern(path.slice(i + 1), patterns.concat(path.slice(0, i)))
+//     if (result) return result
+//   }
+// }
 
-  const reusePattern = patterns.find(pattern => {
-    return path.slice(0, pattern.length) === pattern
-  })
-  if (reusePattern) {
-    // console.log('REUSE PATTERN', reusePattern, path, path.slice(reusePattern.length))
-    return findPathPattern(path.slice(reusePattern.length), patterns)
-  }
-
-  for (let i = maxCharsPerPattern; i > 0; i--) {
-    // const tempPattern = path.slice(0, i)
-    if (path[i] !== ',') continue
-    // console.log('TESTING PATTERN', path.slice(0, i), patterns)
-    const result = findPathPattern(path.slice(i + 1), patterns.concat(path.slice(0, i)))
-    if (result) return result
-  }
-}
-
-const usedPaths = new Set<string>()
 function showPath(map: string[][], visited: Position[]) {
-  // console.log(visited)
-  const visitStr = visited.map(pos => JSON.stringify(pos)).join(',')
-  if (usedPaths.has(visitStr)) {
-    console.log('SAME')
-  }
-  usedPaths.add(visitStr)
   const mapCopy: string[][] = JSON.parse(JSON.stringify(map))
   visited.forEach(pos => mapCopy[pos.row][pos.col] = '$')
   mapCopy.forEach(row => console.log(row.join('')))
@@ -127,7 +119,6 @@ function getPaths(map: string[][], intersections: Position[]) {
   while (queue.length) {
     const current = queue.shift()!
     if (JSON.stringify(current.pos) === endPos) {
-      // console.log('FOUND')
       answer.push(current)
       continue
     }
@@ -141,7 +132,6 @@ function getPaths(map: string[][], intersections: Position[]) {
       if (JSON.stringify(nextPos) === JSON.stringify(current.prev)) return
       queue.push({
         pos: nextPos,
-        // visited: new Set(current.visited).add(nextPosStr),
         visited: nextPosIsInt ? new Set(current.visited) : new Set(current.visited).add(nextPosStr),
         prev: current.pos,
         intCount: nextPosIsInt ? current.intCount + 1 : current.intCount
@@ -277,7 +267,7 @@ function findPathPatternV2(path: string, patterns: Pattern = {}): undefined | Pa
     // console.log('TESTING PATTERN', path.slice(0, i), patterns)
     // const result = findPathPattern(path.slice(i + 1), patterns.concat(path.slice(0, i)))
     const result = findPathPatternV2(path.slice(i + 1),  { ...patterns, [path.slice(0, i)]: 1 })
-    // if (result) return result
+    if (result) return result
   }
 }
 
@@ -298,16 +288,16 @@ console.log(part1, [ 8084 ].includes(part1))
 
 const paths = getPathsV2(map, intersections, { row: 28, col: 4 })
 console.log(paths.length)
-const idk = paths.map(path => pathConverter(path.path, '^'))
-// let fixer = false;
-idk.forEach(miniIdk => {
-  findPathPatternV2(miniIdk.join(','))
-  // if (!fixer && allPatterns.length > 0) {
-  //   fixer = true
-  //   console.log(miniIdk.join(','))
-  // }
-})
-console.log(allPatterns)
+// const idk = paths.map(path => pathConverter(path.path, '^'))
+// // let fixer = false;
+// idk.forEach(miniIdk => {
+//   findPathPatternV2(miniIdk.join(','))
+//   // if (!fixer && allPatterns.length > 0) {
+//   //   fixer = true
+//   //   console.log(miniIdk.join(','))
+//   // }
+// })
+// console.log(allPatterns)
 
 // THIS SHIT ACTUALLY WORKED WHAT THE FUCK
 const answerStr = `A,B,A,B,C,B,C,A,C,C\nR,12,L,10,L,10\nL,6,L,12,R,12,L,4\nL,12,R,12,L,6\nn\n`
@@ -327,6 +317,30 @@ console.log('ANSWER', part2, part2 === 1119775)
 //     "L,12,R,12,L,6": 4, -> C
 //   }
 // ]
+//
+
+// PROBLEM2 OUTPUTS:
+// "L", 6, "L", 12, "R", 6, "L", 10, "L", 12, "R", 6, "R", 6, "R", 12, "L", 12, "R", 4, "R", 2, "R", 10, "R", 12, "L", 6, "R", 12, "L", 10, "L", 10, "L", 12, "R", 12, "L", 6, "L", 12, "R", 12, "L", 6
+const test = [
+  [
+    "R", 12, "L", 10, "L", 10, "L", 6, "L", 12, "R", 12, "L", 4, "R", 12, "L", 10, "L", 10, "L", 6, "L",
+    12, "R", 6, "L", 10, "L", 12, "R", 6, "R", 6, "R", 12, "L", 12, "R", 4, "R", 2, "R", 10, "R", 12, "L",
+    6, "R", 12, "L", 10, "L", 10, "L", 12, "R", 12, "L", 6, "L", 12, "R", 12, "L", 6
+  ], [
+    "R", 12, "L", 10, "L", 10, "L", 6, "L", 12, "R", 12, "L", 4, "R", 12, "L", 10, "L", 10, "L", 6, "L",
+    12, "R", 10, "R", 2, "R", 4, "R", 12, "L", 12, "R", 6, "R", 6, "R", 12, "L", 10, "L", 6, "R", 12, "L",
+    6, "R", 12, "L", 10, "L", 10, "L", 12, "R", 12, "L", 6, "L", 12, "R", 12, "L", 6
+  ], [
+    "R", 12, "L", 10, "L", 10, "L", 6, "L", 12, "R", 12, "L", 4, "R", 12, "L", 10, "L", 10, "L", 6, "L",
+    12, "R", 12, "L", 4, "L", 12, "R", 12, "L", 6, "L", 6, "L", 12, "R", 12, "L", 4, "L", 12, "R", 12, "L",
+    6, "R", 12, "L", 10, "L", 10, "L", 12, "R", 12, "L", 6, "L", 12, "R", 12, "L", 6
+  ]
+]
+
+test.map(arr => findPathPatternV2(arr.join(',')))
+console.log(allPatterns)
+
+
 
 // console.log(idk)
 
