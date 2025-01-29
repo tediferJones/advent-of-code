@@ -241,6 +241,95 @@ function passTimeRecV2(recMap: RecMap, maxTime: number, time = 0) {
   return passTimeRecV2(newRecMap, maxTime, time + 1)
 }
 
+function passTimeRecV3(recMap: RecMap, maxTime: number, time: number = 0) {
+  Object.keys(recMap).toSorted((a, b) => Number(a) - Number(b)).forEach(levelStr => {
+    console.log(levelStr)
+    printMap(recMap[Number(levelStr)])
+  })
+  if (time === maxTime) return recMap
+  const newMap = JSON.parse(JSON.stringify(recMap))
+  const levels = Object.keys(recMap).map(Number)
+  const minLevel = Math.min(...levels)
+  const maxLevel = Math.max(...levels)
+  if (!recMap[maxLevel + 1]) {
+    recMap[maxLevel + 1] = createNewLevel()
+    newMap[maxLevel + 1] = createNewLevel()
+  }
+  if (!recMap[minLevel - 1]) {
+    recMap[minLevel - 1] = createNewLevel()
+    newMap[minLevel - 1] = createNewLevel()
+  }
+  Object.keys(recMap).forEach(levelStr => {
+    const level = Number(levelStr)
+    recMap[level].forEach((row, i) => {
+      row.forEach((cell, j) => {
+        const pos = { row: i, col: j }
+        if (pos.row === 2 && pos.col === 2) {
+          // skip this check, this 'tile' represents the inner grid
+          return
+        }
+
+        // check all adj tiles,
+        // if adj tile is out of bounds, check outer map (level - 1), total of 4 possibilities
+        // if adj tile is { row: 2, col: 2 }, check inner map (level + 1), total of 8 possibilites
+
+        const adjCells = directions.reduce((cells, dir) => {
+          const adjPos = translatePos(pos, dir)
+          if (adjPos.row === 2 && adjPos.col === 2) {
+            // check inner map
+            if (!recMap[level + 1]) {
+              // throw Error('should have already made new levels')
+              recMap[level + 1] = createNewLevel()
+              newMap[level + 1] = createNewLevel()
+            }
+            if (pos.row === 1) {
+              return cells.concat(recMap[level + 1][0])
+            } else if (pos.row === 3) {
+              return cells.concat(recMap[level + 1][4])
+            } else if (pos.col === 1) {
+              return cells.concat(recMap[level + 1].map(row => row[0]))
+            } else if (pos.col === 3) {
+              return cells.concat(recMap[level + 1].map(row => row[4]))
+            }
+            throw Error('failed to handle inner map')
+          }
+          const adjChar = charAtPos(recMap[level], adjPos)
+          if (!adjChar) {
+            if (!recMap[level - 1]) {
+              // throw Error('should have already made new levels')
+              recMap[level - 1] = createNewLevel()
+              newMap[level - 1] = createNewLevel()
+            }
+            // check outer map
+            if (adjPos.row === -1) {
+              return cells.concat(recMap[level - 1][1][2])
+            } else if (adjPos.row === 5) {
+              return cells.concat(recMap[level - 1][3][2])
+            } else if (adjPos.col === -1) {
+              return cells.concat(recMap[level - 1][2][1])
+            } else if (adjPos.col === 5) {
+              return cells.concat(recMap[level - 1][2][3])
+            }
+            throw Error('failed to handle outer map')
+          }
+          // if we make it here, its just a normal compare
+          return cells.concat(adjChar)
+        }, [] as string[])
+
+        const bugCount = adjCells.filter(cell => cell === '#').length
+        if (cell === '#') {
+          newMap[level][pos.row][pos.col] = (bugCount === 1 ? '#' : '.')
+        } else if (cell === '.') {
+          newMap[level][pos.row][pos.col] = (0 < bugCount && bugCount < 3 ? '#' : '.')
+        } else {
+          throw Error('cant handle char')
+        }
+      })
+    })
+  })
+  return passTimeRecV3(newMap, maxTime, time + 1)
+}
+
 function countRecMap(recMap: RecMap) {
   const allMaps = Object.keys(recMap).map(levelStr => {
     const level = Number(levelStr)
@@ -261,13 +350,18 @@ const map = (
   .map(line => line.split(''))
 )
 
-const part1 = calcBiodiversity(findRepeatMap(map))
-console.log(part1, [ 2129920, 18371095 ].includes(part1))
+// const part1 = calcBiodiversity(findRepeatMap(map))
+// console.log(part1, [ 2129920, 18371095 ].includes(part1))
 
 type RecMap = Record<number, string[][]>
 const recMap: RecMap = { 0: map }
-const newRecMap = passTimeRec(recMap, 10)
-console.log('bug count', countRecMap(newRecMap))
+// this one seems to actually work
+// it generates way too many maps, but we can fix that later
+const resultMap = passTimeRecV3(recMap, 10)
+console.log(countRecMap(resultMap))
+
+// const newRecMap = passTimeRec(recMap, 10)
+// console.log('bug count', countRecMap(newRecMap))
 // const newRecMapV2 = passTimeRecV2(recMap, 10)
 // console.log(countRecMap(newRecMapV2))
 // printMap(newRecMap[0])
