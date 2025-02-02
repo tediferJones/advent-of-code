@@ -76,6 +76,20 @@ function splitOutput(str: string) {
   }, {} as Record<string, string[]>)
 }
 
+function splitOutputV2(str: string) {
+  const doorOpts = [ 'north', 'south', 'east', 'west' ]
+  const name = str.match(/== (.+) ==/)?.[1]
+  if (!name) throw Error('cant find name')
+  const opts = str.split(/\n/).map(line => line.match(/- (.+)/)?.[1]).filter(Boolean)
+  const doors = opts.filter(opt => doorOpts.includes(opt!))
+  const items = opts.filter(opt => !doorOpts.includes(opt!))
+  console.log({ doors, items, name })
+  uniqNames.add(name)
+  uniqItems.add(items[0]!)
+  if (items.length > 1) throw Error('found multiple items')
+  return { doors, items, name }
+}
+
 function autoPlay(state: ProgramState, commands: string[] = []) {
   const result = runTillNextCommand(state)
   const output = asciiToStr(result.diagnostics)
@@ -83,9 +97,13 @@ function autoPlay(state: ProgramState, commands: string[] = []) {
   // opts.Doors.
 }
 
+const uniqNames = new Set<string>()
+const uniqItems = new Set<string>()
 function shortestPath(queue: { state: ProgramStateV2, commands: string[] }[]) {
-  // if (queue.length > 4) return
+  // if (queue.length > 16) return
   console.log(queue.length)
+  console.log(uniqNames)
+  console.log(uniqItems)
   if (!queue.length) return
   const { state, commands } = queue.shift()!
   const result = runTillNextCommand(state)
@@ -93,9 +111,11 @@ function shortestPath(queue: { state: ProgramStateV2, commands: string[] }[]) {
   // console.log(output)
   if (output.includes('password') || output.includes('Password')) throw Error('found password')
   const opts = splitOutput(output)
+  console.log(opts)
+  console.log(splitOutputV2(output))
+  // return
   // console.log(opts.Doors, output)
   opts.Doors?.forEach(door => {
-    // console.log(door)
     queue.push({
       // @ts-ignore
       state: {
@@ -109,7 +129,6 @@ function shortestPath(queue: { state: ProgramStateV2, commands: string[] }[]) {
   return shortestPath(queue)
 }
 
-// can you even write out what the fuck you are trying to do
 // path through every available door
 // if current location has items then we need to account for every possibility
 //  - each door with and without item
