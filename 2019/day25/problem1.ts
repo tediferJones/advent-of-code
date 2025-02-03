@@ -48,6 +48,7 @@ function asciiToStr(ascii: number[]) {
 function playGame(state: ProgramState, commands: string[]) {
   const result = runTillNextCommand(state)
   console.log(asciiToStr(result.diagnostics))
+  console.log('GO', commands[0])
   if (!commands.length) return
   result.input = strToAscii(commands[0])
   result.diagnostics = []
@@ -79,12 +80,15 @@ function splitOutput(str: string) {
 function splitOutputV2(str: string) {
   const doorOpts = [ 'north', 'south', 'east', 'west' ]
   const name = str.match(/== (.+) ==/)?.[1]
-  if (!name) throw Error('cant find name')
+  // console.log(str)
+  // if (!name) throw Error('cant find name')
   const opts = str.split(/\n/).map(line => line.match(/- (.+)/)?.[1]).filter(Boolean)
   const doors = opts.filter(opt => doorOpts.includes(opt!))
   const items = opts.filter(opt => !doorOpts.includes(opt!))
-  console.log({ doors, items, name })
-  uniqNames.add(name)
+  // console.log({ doors, items, name })
+  if (name) {
+    uniqNames.add(name)
+  }
   uniqItems.add(items[0]!)
   if (items.length > 1) throw Error('found multiple items')
   return { doors, items, name }
@@ -106,26 +110,65 @@ function shortestPath(queue: { state: ProgramStateV2, commands: string[] }[]) {
   console.log(uniqItems)
   if (!queue.length) return
   const { state, commands } = queue.shift()!
+  console.log('STATE', commands)
   const result = runTillNextCommand(state)
   const output = asciiToStr(result.diagnostics)
   // console.log(output)
   if (output.includes('password') || output.includes('Password')) throw Error('found password')
-  const opts = splitOutput(output)
-  console.log(opts)
-  console.log(splitOutputV2(output))
+  // const opts = splitOutput(output)
+  // console.log(opts)
+  console.log('output', splitOutputV2(output))
   // return
   // console.log(opts.Doors, output)
-  opts.Doors?.forEach(door => {
-    queue.push({
-      // @ts-ignore
-      state: {
-        ...result,
-        diagnostics: [] as number[],
-        input: strToAscii(door)
-      },
-      commands: commands.concat(door)
+  // opts.Doors?.forEach(door => {
+  //   queue.push({
+  //     // @ts-ignore
+  //     state: {
+  //       ...result,
+  //       diagnostics: [] as number[],
+  //       input: strToAscii(door)
+  //     },
+  //     commands: commands.concat(door)
+  //   })
+  // })
+  
+  const fixedOutput = splitOutputV2(output)
+  if (fixedOutput.name) {
+    fixedOutput.doors.forEach(door => {
+      if (fixedOutput.items) {
+        console.log('adding item')
+        fixedOutput.items.forEach(item => {
+          console.log(item)
+          if (item === 'infinite loop') return
+          // @ts-ignore
+          const withItem = runTillNextCommand({
+            ...result,
+            diagnostics: [] as number[],
+            input: strToAscii(`take ${item}`)
+          })
+          queue.push({
+            // @ts-ignore
+            state: {
+              ...withItem,
+              diagnostics: [] as number[],
+              input: strToAscii(door as string)
+            },
+            commands: commands.concat(item as string, door as string)
+          })
+        })
+      }
+      queue.push({
+        // @ts-ignore
+        state: {
+          ...result,
+          diagnostics: [] as number[],
+          input: strToAscii(door as string)
+        },
+        commands: commands.concat(door as string)
+      })
     })
-  })
+
+  }
   return shortestPath(queue)
 }
 
@@ -163,5 +206,26 @@ const state = {
 //   'take whirled peas',
 // ])
 
+playGame(state, [ 'north', 'west', 'south', 'east', 'west', 'north', 'east', 'south' ])
+
+// Set(16) {
+//   "Hull Breach", X
+//   "Hallway", X
+//   "Engineering",
+//   "Holodeck",
+//   "Storage",
+//   "Sick Bay", X
+//   "Science Lab",
+//   "Passages",
+//   "Kitchen", X
+//   "Arcade",
+//   "Observatory",
+//   "Stables",
+//   "Navigation",
+//   "Warp Drive Maintenance",
+//   "Gift Wrapping Center",
+//   "Hot Chocolate Fountain",
+// }
+
 // autoPlay(state)
-shortestPath([{ state, commands: [] }])
+// shortestPath([{ state, commands: [] }])
