@@ -11,7 +11,7 @@ type ProgramStateV2 = {
   relativeBase: number
 }
 
-function runTillNextCommand(programState: ProgramState) {
+function runTillNextCommand(programState: ProgramState): ProgramState {
   const lastOutput = programState.diagnostics[programState.diagnostics.length - 1]
   if (lastOutput === 63) return programState
   return runTillNextCommand(
@@ -52,6 +52,7 @@ function playGame(state: ProgramState, commands: string[]) {
   if (!commands.length) return
   result.input = strToAscii(commands[0])
   result.diagnostics = []
+  // if (JSON.stringify(result) === JSON.stringify(state)) throw Error('same state')
   return playGame(result, commands.slice(1))
 }
 
@@ -81,14 +82,13 @@ function splitOutputV2(str: string) {
   const doorOpts = [ 'north', 'south', 'east', 'west' ]
   const name = str.match(/== (.+) ==/)?.[1]
   // console.log(str)
+  // console.log(str)
   // if (!name) throw Error('cant find name')
-  const opts = str.split(/\n/).map(line => line.match(/- (.+)/)?.[1]).filter(Boolean)
+  const opts = str.split(/\n/).map(line => line.match(/- (.+)/)?.[1]).filter(Boolean) as string[]
   const doors = opts.filter(opt => doorOpts.includes(opt!))
   const items = opts.filter(opt => !doorOpts.includes(opt!))
   // console.log({ doors, items, name })
-  if (name) {
-    uniqNames.add(name)
-  }
+  if (name) uniqNames.add(name)
   uniqItems.add(items[0]!)
   if (items.length > 1) throw Error('found multiple items')
   return { doors, items, name }
@@ -172,6 +172,82 @@ function shortestPath(queue: { state: ProgramStateV2, commands: string[] }[]) {
   return shortestPath(queue)
 }
 
+type GameState = {
+  items: string[],
+  steps: number,
+  state: ProgramState,
+  location: string,
+}
+const msgs = new Set<string>()
+function autoPlayV2(queue: GameState[], seen = new Set<string>) {
+  if (!queue.length) {
+    console.log(msgs)
+    throw Error('failed to find password')
+  }
+  const current = queue.shift()!
+  console.log(current.steps, current.location, current.items)
+  console.log(queue.length)
+  const message = asciiToStr(current.state.diagnostics)
+  msgs.add(message)
+  // console.log(msgs)
+  if (message.includes('see that item here')) throw Error('item not here')
+  if (message.includes('password') || message.includes('Password') || message.includes('airlock') || message.includes('Airlock')) {
+    throw Error('found')
+  }
+  const formatMsg = splitOutputV2(message)
+  if (!formatMsg.name) return autoPlayV2(queue, seen)
+  const posId = {
+    location: current.location,
+    items: current.items.toSorted(),
+  }
+  if (seen.has(JSON.stringify(posId))) return autoPlayV2(queue, seen)
+  seen.add(JSON.stringify(posId))
+  // console.log(formatMsg)
+  formatMsg.doors.forEach(door => {
+    formatMsg.items.forEach(item => {
+      if (current.items.includes(item)) return
+      if (item === 'infinite loop') return
+      // @ts-ignore
+      const withItem = runTillNextCommand({
+        ...current.state,
+        input: strToAscii(`take ${item}`),
+        diagnostics: [],
+      })
+      // @ts-ignore
+      const nextStateWithItem = runTillNextCommand({
+        ...withItem,
+        input: strToAscii(door),
+        diagnostics: []
+      })
+      if (!formatMsg.name) throw Error('no name')
+      const name = splitOutputV2(asciiToStr(nextStateWithItem.diagnostics)).name
+      if (!name) return
+      queue.push({
+        items: current.items.concat(item),
+        steps: current.steps + 1,
+        state: nextStateWithItem,
+        location: formatMsg.name
+      })
+    })
+
+    // @ts-ignore
+    const nextState = runTillNextCommand({
+      ...current.state,
+      input: strToAscii(door),
+      diagnostics: [],
+    })
+    const name = splitOutputV2(asciiToStr(nextState.diagnostics)).name
+    if (!name) throw Error('no name')
+    queue.push({
+      items: current.items,
+      steps: current.steps + 1,
+      state: nextState,
+      location: name, 
+    })
+  })
+  return autoPlayV2(queue, seen)
+}
+
 // path through every available door
 // if current location has items then we need to account for every possibility
 //  - each door with and without item
@@ -189,6 +265,29 @@ const state = {
   halt: undefined,
   relativeBase: 0
 }
+
+const start = runTillNextCommand(state)
+const initialState = {
+  state: start,
+  items: [],
+  steps: 0,
+  location: splitOutputV2(asciiToStr(start.diagnostics)).name!
+}
+autoPlayV2([ initialState ])
+
+// runTillNextCommand({
+//   ...initialState.state,
+//   input: 'north'
+// })
+
+// playGame(state, [
+//   'south',
+//   'south',
+//   'take fuel cell',
+//   'take fuel cell',
+//   'inv'
+// ])
+
 // playGame(state, [
 //   'south',
 //   'take fuel cell',
@@ -206,8 +305,9 @@ const state = {
 //   'take whirled peas',
 // ])
 
-playGame(state, [ 'north', 'west', 'south', 'east', 'west', 'north', 'east', 'south' ])
+// playGame(state, [ 'north', 'west', 'south', 'east', 'west', 'north', 'east', 'south' ])
 
+// all locations
 // Set(16) {
 //   "Hull Breach", X
 //   "Hallway", X
@@ -227,5 +327,35 @@ playGame(state, [ 'north', 'west', 'south', 'east', 'west', 'north', 'east', 'so
 //   "Hot Chocolate Fountain",
 // }
 
+// all messages
+// Set(27) {
+//   "\n\n\n== Hull Breach ==\nYou got in through a hole in the floor here. To keep your ship from also freezing, the hole has been sealed.\n\nDoors here lead:\n- north\n- south\n- west\n\nCommand?",
+//   "\n\n\n\n== Hallway ==\nThis area has been optimized for something; you're just not quite sure what.\n\nDoors here lead:\n- north\n- south\n- west\n\nCommand?",
+//   "\n\n\n\n== Engineering ==\nYou see a whiteboard with plans for Springdroid v2.\n\nDoors here lead:\n- north\n\nItems here:\n- fuel cell\n\nCommand?",
+//   "\n\n\n\n== Holodeck ==\nSomeone seems to have left it on the Giant Grid setting.\n\nDoors here lead:\n- north\n- east\n- west\n \nItems here:\n- mouse\n\nCommand?",
+//   "\n\n\n\n== Storage ==\nThe boxes just contain more boxes.  Recursively.\n\nDoors here lead:\n- south\n\nCommand?",
+//   "\n\n\n\n== Hull Breach ==\nYou got in through a hole in the floor here. To keep your ship from also freezing, the hole has been sealed.\n\nDoors here lead:\n- north\n- south\n- west\n\nCommand?",
+//   "\n\n\n\n== Sick Bay ==\nSupports both Red-Nosed Reindeer medicine and regular reindeer medicine.\n\nDoors here lead:\n- east\n- south\n\nCommand?",
+//   "\n\n\n\n== Science Lab ==\nYou see evidence here of prototype polymer design work.\n\nDoors here lead:\n- east\n- south\n\nItems here:\n- photons\n\nCommand?",
+//   "\n\n\n\n== Passages ==\nThey're a little twisty and starting to look all alike.\n\nDoors here lead:\n- east\n- south\n- west\n\ nItems here:\n- infinite loop\n\nCommand?",
+//   "\n\n\n\n== Kitchen ==\nEverything's freeze-dried.\n\nDoors here lead:\n- north\n- east\n- west\n\nItems here:\n- planetoid\n\nCommand?",
+//   "\n\n\n\n== Engineering ==\nYou see a whiteboard with plans for Springdroid v2.\n\nDoors here lead:\n- north\n\nCommand?",
+//   "\n\n\n\n== Arcade ==\nNone of the cabinets seem to have power.\n\nDoors here lead:\n- west\n\nItems here:\n- klein bottle\n\nCommand?",
+//   "\n\n\n\n== Holodeck ==\nSomeone seems to have left it on the Giant Grid setting.\n\nDoors here lead:\n- north\n- east\n- west\n \nCommand?",
+//   "\n\n\n\n== Observatory ==\nThere are a few telescopes; they're all bolted down, though.\n\nDoors here lead:\n- north\n\nItems here:\n- dark matter\n\nCommand?",
+//   "\n\n\n\n== Stables ==\nReindeer-sized. They're all empty.\n\nDoors here lead:\n- east\n\nItems here:\n- escape pod\n\nCommand?",
+//   "\n\n\n\n== Navigation ==\nStatus: Stranded. Please supply measurements from fifty stars to recalibrate.\n\nDoors here lead:\n- east\n- south\n- west\n\nItems here:\n- mutex\n\nCommand?",
+//   "\n\n\n\n== Warp Drive Maintenance ==\nIt appears to be working normally.\n\nDoors here lead:\n- east\n\nItems here:\n- antenna\n\nCommand?",
+//   "\n\n\n\n== Kitchen ==\nEverything's freeze-dried.\n\nDoors here lead:\n- north\n- east\n- west\n\nCommand?",
+//   "\n\n\n\n== Gift Wrapping Center ==\nHow else do you wrap presents on the go?",
+//   "\n\n\n\n== Hot Chocolate Fountain ==\nSomehow, it's still working.\n\nDoors here lead:\n- north\n- south\n- west\n\nItems here: \n- whirled peas\n\nCommand?",
+//   "\n\n\n\n== Arcade ==\nNone of the cabinets seem to have power.\n\nDoors here lead:\n- west\n\nCommand?",
+//   "\n\n\n\n== Observatory ==\nThere are a few telescopes; they're all bolted down, though.\n\nDoors here lead:\n- north\n\nCommand?",
+//   "\n\n\n\n== Corridor ==\nThe metal walls and the metal floor are slightly different colors. Or are they?",
+//   "\n\n\n\n== Crew Quarters ==\nThe beds are all too small for you.\n\nDoors here lead:\n- east\n\nItems here:\n- molten lava\n\nCommand?",
+//   "\n\n\n\n== Warp Drive Maintenance ==\nIt appears to be working normally.\n\nDoors here lead:\n- east\n\nCommand?",
+//   "\n\n\n\n== Science Lab ==\nYou see evidence here of prototype polymer design work.\n\nDoors here lead:\n- east\n- south\n\nCommand?",
+//   "\n\n\n\n== Hot Chocolate Fountain ==\nSomehow, it's still working.\n\nDoors here lead:\n- north\n- south\n- west\n\nCommand?",
+// }
 // autoPlay(state)
 // shortestPath([{ state, commands: [] }])
