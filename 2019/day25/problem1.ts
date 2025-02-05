@@ -12,8 +12,19 @@ type ProgramStateV2 = {
 }
 
 function runTillNextCommand(programState: ProgramState): ProgramState {
-  const lastOutput = programState.diagnostics[programState.diagnostics.length - 1]
-  if (lastOutput === 63) return programState
+  // console.log(programState.input)
+  if (programState.halted) return programState
+  const ascii = programState.diagnostics.slice(-8)
+  if (asciiToStr(ascii) === 'Command?') {
+    return programState
+  }
+  // const lastOutput = programState.diagnostics[programState.diagnostics.length - 1]
+  // if (lastOutput === 63) return programState
+  // if (!programState.input) {
+  //   console.log(programState)
+  //   console.log(asciiToStr(programState.diagnostics))
+  //   throw Error('no input')
+  // }
   return runTillNextCommand(
     runOnce(
       programState.program,
@@ -90,6 +101,10 @@ function splitOutputV2(str: string) {
   // console.log({ doors, items, name })
   if (name) uniqNames.add(name)
   uniqItems.add(items[0]!)
+  if (name && doors.length === 0) {
+    console.log(str)
+    throw Error('nope')
+  }
   if (items.length > 1) throw Error('found multiple items')
   return { doors, items, name }
 }
@@ -177,14 +192,27 @@ type GameState = {
   steps: number,
   state: ProgramState,
   location: string,
+  path: string[]
 }
+const doorOpts = [ 'north', 'south', 'east', 'west' ]
 const msgs = new Set<string>()
+const itemMsgs = new Set<string>()
+let iterCount = 0
 function autoPlayV2(queue: GameState[], seen = new Set<string>) {
+  iterCount++
+  // console.log(queue.length)
+  // console.log(iterCount)
+  // queue.map(state => console.log(state.location))
+  // if (queue.length > 1) return
   if (!queue.length) {
     console.log(msgs)
+    console.log(itemMsgs)
     throw Error('failed to find password')
   }
   const current = queue.shift()!
+  // if (current.items.length === 8) {
+  //   throw Error('found all items')
+  // }
   console.log(current.steps, current.location, current.items)
   console.log(queue.length)
   const message = asciiToStr(current.state.diagnostics)
@@ -199,11 +227,17 @@ function autoPlayV2(queue: GameState[], seen = new Set<string>) {
   const posId = {
     location: current.location,
     items: current.items.toSorted(),
+    // steps: current.steps
+    // path: current.path
   }
-  if (seen.has(JSON.stringify(posId))) return autoPlayV2(queue, seen)
+  if (seen.has(JSON.stringify(posId))) {
+    // console.log('found after adding to queue')
+    return autoPlayV2(queue, seen)
+  }
   seen.add(JSON.stringify(posId))
   // console.log(formatMsg)
-  formatMsg.doors.forEach(door => {
+  // formatMsg.doors.forEach(door => {
+  doorOpts.forEach(door => {
     formatMsg.items.forEach(item => {
       if (current.items.includes(item)) return
       if (item === 'infinite loop') return
@@ -213,20 +247,70 @@ function autoPlayV2(queue: GameState[], seen = new Set<string>) {
         input: strToAscii(`take ${item}`),
         diagnostics: [],
       })
+      const withItemOutput = asciiToStr(withItem.diagnostics)
+      itemMsgs.add(withItemOutput)
+      // if (withItemOutput.includes('go that way')) {
+      //   throw Error('cant go that way')
+      // }
+      if (withItem.halted) {
+        // console.log(asciiToStr(current.state.diagnostics))
+        // console.log(asciiToStr(withItem.diagnostics))
+        // if (item === 'photons' && iterCount > 11) {
+        //   console.log('iterCount', iterCount)
+        //   throw Error('found photons')
+        // }
+        // throw Error('is halted')
+        return
+      }
+      // console.log(withItem.input)
+      if (!withItem.input || withItem.input.length) {
+        // console.log(current.state)
+        // console.log(runTillNextCommand({
+        //   ...current.state,
+        //   input: strToAscii(`take ${item}`),
+        //   diagnostics: [],
+        // }).input)
+        // console.log(asciiToStr(state.diagnostics))
+        throw Error('didnt take input')
+      }
       // @ts-ignore
       const nextStateWithItem = runTillNextCommand({
         ...withItem,
         input: strToAscii(door),
         diagnostics: []
       })
+      const nextStateWithItemOutput = asciiToStr(nextStateWithItem.diagnostics)
+      if (nextStateWithItemOutput.includes('go that way')) {
+        return
+        throw Error('cant go that way')
+      }
+      if (!nextStateWithItem.input || nextStateWithItem.input.length) throw Error('didnt take input')
       if (!formatMsg.name) throw Error('no name')
       const name = splitOutputV2(asciiToStr(nextStateWithItem.diagnostics)).name
-      if (!name) return
+      if (!name) {
+        // console.log(asciiToStr(current.state.diagnostics))
+        // console.log(withItemOutput)
+        // console.log(nextStateWithItemOutput)
+        // throw Error('no name')
+        return
+      }
+
+      // const posId = {
+      //   location: current.location,
+      //   items: current.items.toSorted(),
+      // }
+      // if (seen.has(JSON.stringify(posId))) {
+      //   console.log('found after adding to queue')
+      //   return autoPlayV2(queue, seen)
+      // }
+      // seen.add(JSON.stringify(posId))
+
       queue.push({
         items: current.items.concat(item),
         steps: current.steps + 1,
         state: nextStateWithItem,
-        location: formatMsg.name
+        location: name,
+        path: current.path.concat(name)
       })
     })
 
@@ -236,13 +320,36 @@ function autoPlayV2(queue: GameState[], seen = new Set<string>) {
       input: strToAscii(door),
       diagnostics: [],
     })
+    if (nextState.halted) {
+      console.log(asciiToStr(nextState.diagnostics))
+      throw Error('nextState halted')
+    }
+    const nextStateOutput = asciiToStr(nextState.diagnostics)
+    if (nextStateOutput.includes('go that way')) {
+      return
+      console.log(nextStateOutput)
+      throw Error('cant go that way')
+    }
+    // console.log({ currentState: current.state, nextState })
+    // if (!nextState.input || nextState.input.length) {
+    //   console.log(asciiToStr(current.state.diagnostics))
+    //   console.log(asciiToStr(nextState.input))
+    //   console.log(nextStateOutput)
+    //   // return
+    //   throw Error('didnt take input')
+    // }
     const name = splitOutputV2(asciiToStr(nextState.diagnostics)).name
-    if (!name) throw Error('no name')
+    if (!name) {
+      console.log('current', asciiToStr(current.state.diagnostics))
+      console.log('next', asciiToStr(nextState.diagnostics))
+      throw Error('no name')
+    }
     queue.push({
       items: current.items,
       steps: current.steps + 1,
       state: nextState,
       location: name, 
+      path: current.path.concat(name)
     })
   })
   return autoPlayV2(queue, seen)
@@ -271,7 +378,8 @@ const initialState = {
   state: start,
   items: [],
   steps: 0,
-  location: splitOutputV2(asciiToStr(start.diagnostics)).name!
+  location: splitOutputV2(asciiToStr(start.diagnostics)).name!,
+  path: [],
 }
 autoPlayV2([ initialState ])
 
@@ -279,6 +387,35 @@ autoPlayV2([ initialState ])
 //   ...initialState.state,
 //   input: 'north'
 // })
+
+function playGameV2(state: ProgramState, commands: string[]) {
+  console.log('iterating', commands)
+  console.log(asciiToStr(state.diagnostics))
+  if (!commands.length) return state
+  // const result = runTillNextCommand(state)
+  // console.log(asciiToStr(result.diagnostics))
+  state.diagnostics = []
+  state.input = strToAscii(commands[0])
+  return playGameV2(runTillNextCommand(state), commands.slice(1))
+}
+
+// playGameV2(
+//   runTillNextCommand(runTillNextCommand(runTillNextCommand(state))), [
+//   'south',
+//   'south',
+//   'south',
+//   'south',
+// ])
+// state.input = strToAscii('north')
+// const initial = runTillNextCommand(state)
+// console.log(asciiToStr(initial.diagnostics), initial.input)
+// initial.diagnostics = []
+// initial.input = strToAscii('north')
+// const first = runTillNextCommand(initial)
+// console.log(asciiToStr(first.diagnostics), first.input)
+// first.diagnostics = []
+// const second = runTillNextCommand(first)
+// console.log(asciiToStr(second.diagnostics), second.input)
 
 // playGame(state, [
 //   'south',
