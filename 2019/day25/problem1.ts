@@ -33,7 +33,7 @@ function asciiToStr(ascii: number[]) {
   return ascii.map(charCode => String.fromCharCode(charCode)).join('')
 }
 
-function splitOutputV2(str: string) {
+function splitOutput(str: string) {
   const doorOpts = [ 'north', 'south', 'east', 'west' ]
   const name = str.match(/== (.+) ==/)?.[1]
   const opts = (
@@ -46,18 +46,16 @@ function splitOutputV2(str: string) {
   return { doors, name, item }
 }
 
-function autoPlayV2(queue: GameState[], seen = new Set<string>, answer = 0) {
+function autoPlay(queue: GameState[], seen = new Set<string>, answer = 0) {
   if (!queue.length) return
   const current = queue.shift()!
-  // console.log(current.steps, current.location, current.items)
-  // console.log(queue.length)
   const message = asciiToStr(current.state.diagnostics)
-  const formatMsg = splitOutputV2(message)
+  const formatMsg = splitOutput(message)
   const posId = JSON.stringify({
     location: current.location,
     items: current.items.toSorted(),
   })
-  if (seen.has(posId)) return autoPlayV2(queue, seen)
+  if (seen.has(posId)) return autoPlay(queue, seen)
   seen.add(posId)
   const item = formatMsg.item
   formatMsg.doors.some(door => {
@@ -76,7 +74,7 @@ function autoPlayV2(queue: GameState[], seen = new Set<string>, answer = 0) {
             input: strToAscii(door),
             diagnostics: []
           })
-          const name = splitOutputV2(
+          const name = splitOutput(
             asciiToStr(nextStateWithItem.diagnostics)
           ).name
           if (name) {
@@ -100,10 +98,11 @@ function autoPlayV2(queue: GameState[], seen = new Set<string>, answer = 0) {
     if (nextState.halted) {
       console.log(asciiToStr(nextState.diagnostics))
       console.log('path', current.path)
+      console.log('items', current.items)
       answer = Number(asciiToStr(nextState.diagnostics).match(/(\d+)/)![1])
       return true
     }
-    const name = splitOutputV2(asciiToStr(nextState.diagnostics)).name
+    const name = splitOutput(asciiToStr(nextState.diagnostics)).name
     if (!name) return
     queue.push({
       items: current.items,
@@ -114,14 +113,8 @@ function autoPlayV2(queue: GameState[], seen = new Set<string>, answer = 0) {
     })
   })
   if (answer) return answer
-  return autoPlayV2(queue, seen)
+  return autoPlay(queue, seen)
 }
-
-// path through every available door
-// if current location has items then we need to account for every possibility
-//  - each door with and without item
-//  - if multiple items in one location, then add every unique combo of items
-//    - order of item pick up should not matter
 
 const startTime = Bun.nanoseconds()
 const program = (await Bun.file(process.argv[2]).text()).split(/,/).map(Number)
@@ -140,9 +133,9 @@ const initialState = {
   state: start,
   items: [],
   steps: 0,
-  location: splitOutputV2(asciiToStr(start.diagnostics)).name!,
-  path: [],
+  location: splitOutput(asciiToStr(start.diagnostics)).name!,
+  path: [ 'Hull Breach' ],
 }
-const part1 = autoPlayV2([ initialState ])!
-console.log(part1, [ 16810049 ].includes(part1)) // assumed answer
+const part1 = autoPlay([ initialState ])!
+console.log(part1, [ 16810049 ].includes(part1))
 console.log(`${(Bun.nanoseconds() - startTime) / 10**9} seconds`)
