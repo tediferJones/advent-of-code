@@ -6,20 +6,30 @@ function extendInput(input: number[], times: number): number[] {
   return Array(times).fill(input).flat()
 } 
 
-function fft(input: number[], pattern: number[], maxCount: number, count = 0) {
-  if (count === maxCount) return arrToNum(input, 0, 8)
-  const result = input.reduce((result, _, i) => {
-    const digit = input.reduce((total, num, j) => {
-      const patternIndex = Math.floor((j + 1) / (i + 1)) % pattern.length
-      return total + (num * pattern[patternIndex])
-    }, 0)
-    return result.concat(Math.abs(digit) % 10)
-  }, [] as number[])
-  return fft(result, pattern, maxCount, count + 1)
+function accumWithStep(input: number[], step: number, total = 0, isPositive = true) {
+  if (!input.length) return Math.abs(total) % 10
+  const seqTotal = input.slice(0, step).reduce((total, num) => total + num, 0)
+  return accumWithStep(
+    input.slice(step * 2),
+    step,
+    total + seqTotal * (isPositive ? 1 : -1),
+    !isPositive
+  )
 }
 
-// After halfway all freqs will be 1,
-// so we can just add the numbers in the list
+function fft(input: number[], maxCount: number, count = 0) {
+  if (count === maxCount) return arrToNum(input, 0, 8)
+  return fft(
+    input.reduce((newDigits, _, i) => {
+      return newDigits.concat(accumWithStep(input.slice(i), i + 1))
+    }, [] as number[]),
+    maxCount,
+    count + 1
+  )
+}
+
+// After halfway all frequencies will be 1,
+// so we can just accumulate the numbers in the list
 // and subtract each num as we process it
 function fftPart2(input: number[], maxCount: number, count = 0) {
   if (count === maxCount) return arrToNum(input, 0, 8)
@@ -46,8 +56,7 @@ const data = (
   .map(Number)
 )
 
-const pattern = [ 0, 1, 0, -1 ]
-const part1 = fft(data, pattern, 100)
+const part1 = fft(data, 100)
 console.log(part1, [ 24176176, 73745418, 52432133, 90744714 ].includes(part1))
 
 const extended = extendInput(data, 10000)
