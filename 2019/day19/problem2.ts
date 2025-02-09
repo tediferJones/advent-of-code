@@ -14,35 +14,28 @@ function solvePart1(program: number[]) {
   }, 0);
 }
 
-function rowIsValid(program: number[], length: number, row = 1) {
-  const positions = [ ...Array(row + 1).keys() ].map(i => ({ row, col: i }));
-  const result = positions.map(pos => testPos(program, pos));
-  if (result.join('').includes('1'.repeat(length))) return row;
+function findLast(program: number[], row: number, col = row) {
+  if (col === 0) return;
+  if (testPos(program, { row, col })) return { row, col };
+  return findLast(program, row, col - 1);
 }
 
-function findRow(program: number[], length: number, row = 1) {
-  if (rowIsValid(program, length, row)) return row / 2;
-  return findRow(program, length, row * 2);
-}
-
-function findCol(program: number[], length: number, row: number, col = 0) {
-  if (testPos(program, { row, col })) return col;
-  return findCol(program, length, row, col + 1);
-}
-
-function checkForSqr(
+function bSearchSquare(
   program: number[],
   length: number,
-  row: number,
-  col: number
+  rowMin = 0,
+  rowMax = 4096,
 ) {
-  const topLeft = testPos(program, { row, col });
-  if (!topLeft) return checkForSqr(program, length, row, col + 1);
-  const topRight = testPos(program, { row, col: col + length - 1 });
-  if (!topRight) return checkForSqr(program, length, row + 1, col - length);
-  const bottomLeft = testPos(program, { row: row + length - 1, col });
-  if (!bottomLeft) return checkForSqr(program, length, row, col + 1);
-  return col * 10000 + row;
+  const midRow = Math.floor((rowMin + rowMax) / 2);
+  const topRight = findLast(program, midRow);
+  if (!topRight) throw Error('no top right')
+  const col = topRight.col - length + 1;
+  if (rowMax - rowMin === 1) return (col + 1) * 10000 + rowMax;
+  const topLeft = testPos(program, { row: midRow, col: col });
+  if (!topLeft) return bSearchSquare(program, length, midRow, rowMax);
+  const bottomLeft = testPos(program, { row: midRow + length - 1, col: col });
+  if (!bottomLeft) return bSearchSquare(program, length, midRow, rowMax);
+  return bSearchSquare(program, length, rowMin, midRow);
 }
 
 const startTime = Bun.nanoseconds();
@@ -50,11 +43,6 @@ const program = (await Bun.file(process.argv[2]).text()).split(/,/).map(Number);
 
 const part1 = solvePart1(program);
 console.log(part1, [ 114 ].includes(part1));
-
-const size = 100;
-const startRow = findRow(program, size);
-const startCol = findCol(program, size, startRow);
-const part2 = checkForSqr(program, size, startRow, startCol);
+const part2 = bSearchSquare(program, 100);
 console.log(part2, [ 10671712 ].includes(part2));
-
 console.log(`TIME: ${(Bun.nanoseconds() - startTime) / 10**9} seconds`);
