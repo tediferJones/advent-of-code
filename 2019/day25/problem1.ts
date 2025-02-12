@@ -1,4 +1,4 @@
-import { runOnce } from '../day23/intCode'
+import { runOnce } from '../intCode'
 
 type ProgramState = ReturnType<typeof runOnce>
 type GameState = {
@@ -10,19 +10,10 @@ type GameState = {
 }
 
 function runTillNextCommand(programState: ProgramState): ProgramState {
-  if (programState.halted) return programState
+  if (programState.done) return programState
   const ascii = programState.diagnostics.slice(-8)
   if (asciiToStr(ascii) === 'Command?') return programState
-  return runTillNextCommand(
-    runOnce(
-      programState.program,
-      programState.index,
-      programState.input,
-      programState.diagnostics,
-      programState.halt,
-      programState.relativeBase,
-    )
-  )
+  return runTillNextCommand(runOnce(programState))
 }
 
 function strToAscii(str: string) {
@@ -67,7 +58,7 @@ function autoPlay(queue: GameState[], seen = new Set<string>, answer = 0) {
           input: strToAscii(`take ${item}`),
           diagnostics: [],
         })
-        if (!withItem.halted) {
+        if (!withItem.done) {
           // @ts-ignore
           const nextStateWithItem = runTillNextCommand({
             ...withItem,
@@ -95,7 +86,7 @@ function autoPlay(queue: GameState[], seen = new Set<string>, answer = 0) {
       input: strToAscii(door),
       diagnostics: [],
     })
-    if (nextState.halted) {
+    if (nextState.done) {
       console.log(asciiToStr(nextState.diagnostics))
       console.log('path', current.path)
       console.log('items', current.items)
@@ -124,8 +115,9 @@ const state = {
   index: 0,
   input: [],
   diagnostics: [],
-  halt: undefined,
-  relativeBase: 0
+  halt: false,
+  relativeBase: 0,
+  done: false
 }
 
 const start = runTillNextCommand(state)
