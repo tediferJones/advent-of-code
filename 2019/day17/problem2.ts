@@ -1,4 +1,4 @@
-import runIntCode from '../day13/intCode'
+import { runIntCode } from '../intCode'
 
 type Position = { row: number, col: number }
 type DirChars = '^' | '>' | 'v' | '<'
@@ -240,14 +240,14 @@ function solvePart2(map: string[][], intersections: Position[], turboMode?: bool
   const instructions = paths.map(path => pathConverter(path.path, startPos.char))
   const patterns = instructions.map(ins => findPathPattern(ins.join(','))).filter(Boolean)
   const ascii = patternToAsciiV2(patterns[0]!, 'n')
-  const intCodePart2 = runIntCode(program.with(0, 2), 0, ascii)
+  const intCodePart2 = runIntCode({ program: program.with(0, 2), input: ascii })
   return intCodePart2.diagnostics[intCodePart2.diagnostics.length - 1]
 }
 
 const startTime = Bun.nanoseconds()
 const program = (await Bun.file(process.argv[2]).text()).split(/,/).map(Number)
 
-const result = runIntCode(program)
+const result = runIntCode({ program })
 const map = drawMap(result.diagnostics)
 const intersections = getIntersections(map)
 

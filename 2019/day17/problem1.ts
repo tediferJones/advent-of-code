@@ -1,4 +1,4 @@
-import runIntCode from '../day13/intCode'
+import { runIntCode } from '../intCode'
 
 function drawMap(output: number[]) {
   return  output.reduce((map, tile) => {
@@ -27,7 +27,7 @@ function solvePart1(map: string[][]) {
 
 const program = (await Bun.file(process.argv[2]).text()).split(/,/).map(Number)
 
-const result = runIntCode(program)
+const result = runIntCode({ program })
 
 const map = drawMap(result.diagnostics)
 map.forEach(row => console.log(row.join('')))

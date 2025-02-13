@@ -1,4 +1,4 @@
-type ProgramState = {
+export type ProgramState = {
   program: number[],
   index?: number,
   input?: number[],
@@ -48,7 +48,7 @@ function translateOpCode(opCode: number) {
 export function runIntCode(programState: ProgramState): Required<ProgramState> {
   const nextState = runOnce(programState)
   if (nextState.done) return nextState
-  if (nextState.halt !== programState.halt) return nextState
+  if (programState.halt === true && nextState.halt === false) return nextState
   return runIntCode(nextState)
 }
 

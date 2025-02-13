@@ -1,7 +1,8 @@
-import runIntCode from '../day13/intCode';
+import { runIntCode } from '../intCode';
+import type { ProgramState as StandardProgramState } from '../intCode';
 
 type Position = { row: number, col: number }
-type ProgramState = ReturnType<typeof runIntCode> & {
+type ProgramState = StandardProgramState & {
   steps: number,
   pos: Position
 }
@@ -43,7 +44,13 @@ function shortestPath(
   const { program, index, relativeBase, steps, pos } = queue.shift()!;
   Object.keys(posChange).forEach(dirKey => {
     const dir = Number(dirKey);
-    const nextStep = runIntCode(program, index, [ dir ], [], true, relativeBase);
+    const nextStep = runIntCode({
+      program,
+      index,
+      input: [ dir ],
+      halt: true,
+      relativeBase
+    });
     const newPos = translatePos(pos, posChange[dir]);
     const strNewPos = posToStr(newPos, nextStep.diagnostics[0]);
     if (seen.has(strNewPos)) return;
@@ -53,7 +60,7 @@ function shortestPath(
       return leastSteps = steps + 1;
     }
     queue.push({ ...nextStep, steps: steps + 1, pos: newPos });
-  })
+  });
   if (queue.length === 0) return { mapData: seen, leastSteps };
   return shortestPath(queue, seen, leastSteps);
 }
@@ -106,7 +113,7 @@ function oxygenSpread(
     if (seen.has(strNewPos)) return;
     seen.add(strNewPos);
     queue.push({ ...newPos, time: current.time + 1 });
-  })
+  });
   if (queue.length === 0) return current.time;
   return oxygenSpread(map, queue, seen, longestTime);
 }
@@ -115,10 +122,6 @@ const program = (await Bun.file(process.argv[2]).text()).split(/,/).map(Number);
 
 const result = shortestPath([{
   program,
-  index: 0,
-  diagnostics: [],
-  relativeBase: 0,
-  input: [],
   steps: 0,
   pos: { row: 0, col: 0 },
 }]);

@@ -1,9 +1,9 @@
-import runIntCode from '../day13/intCode';
+import { runIntCode } from '../intCode';
 
 type Position = { row: number, col: number }
 
 function testPos(program: number[], pos: Position) {
-  return runIntCode(program, 0, [ pos.col, pos.row ]).diagnostics[0];
+  return runIntCode({ program, input: [ pos.col, pos.row ] }).diagnostics[0];
 }
 
 function solvePart1(program: number[], squareSize: number) {
