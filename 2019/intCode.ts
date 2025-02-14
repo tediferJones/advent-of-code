@@ -107,9 +107,10 @@ export function runOnce({
     const parameters = program.slice(index + 1, index + pointerChange)
     const [ dest ] = handleModes(program, parameters, modes, relativeBase)
     if (dest < 0) throw Error('negative dest at op 3')
-    if (!input.length) throw Error('attempting to read input, no input found')
+    // if (!input.length) throw Error('attempting to read input, no input found')
     return {
-      program: updateProgram(program, dest, input![0]),
+      // program: updateProgram(program, dest, input![0]),
+      program: input.length ? updateProgram(program, dest, input[0]) : program,
       index: index + pointerChange,
       input: input.slice(1),
       diagnostics,

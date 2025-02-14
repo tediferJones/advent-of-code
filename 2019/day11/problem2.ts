@@ -1,4 +1,5 @@
-import runIntCode from './intCode';
+import { runIntCode } from '../intCode';
+import type { ProgramState } from '../intCode';
 
 type Position = { row: number, col: number }
 type Directions = 'up' | 'down' | 'left' | 'right'
@@ -27,35 +28,35 @@ function paint(
   panel: string[][],
   pos: Position,
   dir: Directions,
-  program: number[],
-  index: number = 0,
-  relativeBase: number = 0,
+  programState: ProgramState,
   visited = new Set<string>()
 ) {
   const color = colorToChar.findIndex(char => char === panel[pos.row][pos.col]);
   if (color === -1) throw Error('out of bounds, please increase panel size');
 
-  const firstRun = runIntCode(program, index, [ color ], [], true, relativeBase);
-  if (firstRun.halted) return visited;
+  const firstRun = runIntCode({
+    ...programState,
+    input: [ color ],
+    diagnostics: [],
+    halt: true
+  });
+  if (firstRun.done) return visited;
 
   panel[pos.row][pos.col] = colorToChar[firstRun.diagnostics[0]];
   visited.add(`${pos.row},${pos.col}`);
-  const secondRun = runIntCode(firstRun.program, firstRun.index!, [ color ], [], true, firstRun.relativeBase!);
+  const secondRun = runIntCode({
+    ...firstRun,
+    input: [ color ],
+    diagnostics: [],
+    halt: true
+  });
 
   dir = rotations[dir][secondRun.diagnostics[0]];
   const move = moves[dir];
   pos = { row: pos.row + move.row, col: pos.col + move.col };
-  if (secondRun.halted) return visited;
 
-  return paint(
-    panel,
-    pos,
-    dir,
-    secondRun.program,
-    secondRun.index!,
-    secondRun.relativeBase!,
-    visited
-  );
+  if (secondRun.done) return visited;
+  return paint(panel, pos, dir, secondRun, visited);
 }
 
 function printRegId(panel: string[][]) {
@@ -82,10 +83,10 @@ const size = 125;
 const center = Math.floor(size / 2);
 const pos = { row: center, col: center };
 
-const part1 = paint(getPanel(size), pos, 'up', program).size;
+const part1 = paint(getPanel(size), pos, 'up', { program }).size;
 console.log(part1, [ 2268 ].includes(part1));
 
 const part2Panel = getPanel(size);
 part2Panel[pos.row][pos.col] = '#';
-paint(part2Panel, pos, 'up', program);
+paint(part2Panel, pos, 'up', { program });
 printRegId(part2Panel); // Should display CEPKZJCR
