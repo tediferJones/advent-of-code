@@ -1,31 +1,26 @@
-const ops: Record<number, ((a: number, b: number) => number)> = {
-  1: (a, b) => a + b,
-  2: (a, b) => a * b,
+import { runIntCode } from '../intCode';
+
+function solvePart1(program: number[]) {
+  return runIntCode({ program: program.with(1, 12).with(2, 2) }).program[0];
 }
 
-function run(program: number[], count = 0) {
-  const [ op, i1, i2, dest ] = program.slice(count * 4, (count * 4) + 4);
-  if (op === 99) return program;
-  const result = ops[op](program[i1], program[i2]);
-  return run(program.with(dest, result), count + 1);
-}
-
-function findOutput(program: number[], output: number, noun = 0, verb = 0) {
+function solvePart2(program: number[], output: number, noun = 0, verb = 0) {
   if (noun === 99 && verb === 99) return;
-  const testOutput = run(program.with(1, noun).with(2, verb))[0];
+  const newProgram = program.with(1, noun).with(2, verb);
+  const testOutput = runIntCode({ program: newProgram }).program[0];
   if (testOutput === output) return 100 * noun + verb;
-  return findOutput(
+  return solvePart2(
     program,
     output,
     verb === 99 ? noun + 1 : noun,
-    verb === 99 ? 0 : verb + 1
+    verb === 99 ? 0 : verb + 1,
   );
 }
 
 const program = (await Bun.file(process.argv[2]).text()).split(/,/).map(Number);
 
-const part1 = run(program.with(1, 12).with(2, 2))[0];
+const part1 = solvePart1(program);
 console.log(part1, [ 3058646 ].includes(part1));
 
-const part2 = findOutput(program, 19690720)!;
+const part2 = solvePart2(program, 19690720)!;
 console.log(part2, [ 8976 ].includes(part2));

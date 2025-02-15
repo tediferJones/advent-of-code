@@ -1,4 +1,4 @@
-import runIntCode from '../intCode'
+import { runIntCode } from '../intCode';
 
 type BestCombo = { seq: number[], val: number }
 
@@ -13,22 +13,17 @@ function getAllSeq(array: number[]): number[][] {
 
 function thrusterSignal(program: number[], seq: number[]) {
   return seq.reduce((result, phase) => {
-    return runIntCode(program, 0, [ phase, result ]).diagnostics[0]
-  }, 0)
+    return runIntCode({ program, input: [ phase, result ] }).diagnostics[0];
+  }, 0);
 }
 
-function testCombos(program: number[], seqSize: number) {
-  const allSeq = getAllSeq([ ...Array(seqSize).keys() ])
-  return allSeq.reduce((best, seq) => {
-    const test = thrusterSignal(program, seq)
-    if (test > best.val) {
-      best.val = test;
-      best.seq = seq;
-    }
-    return best
-  }, { seq: [], val: -Infinity } as BestCombo)
+function solvePart1(program: number[], seqSize: number) {
+  return getAllSeq([ ...Array(seqSize).keys() ]).reduce((best, seq) => {
+    const test = thrusterSignal(program, seq);
+    return test > best ? test : best;
+  }, -Infinity);
 }
 
-const program = (await Bun.file(process.argv[2]).text()).split(/,/).map(Number)
-const part1 = testCombos(program, 5).val
-console.log(part1, [ 43210, 54321, 65210, 13848 ].includes(part1))
+const program = (await Bun.file(process.argv[2]).text()).split(/,/).map(Number);
+const part1 = solvePart1(program, 5);
+console.log(part1, [ 43210, 54321, 65210, 13848 ].includes(part1));
