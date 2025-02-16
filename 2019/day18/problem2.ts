@@ -214,20 +214,182 @@ const grid = (
   .map(row => row.split(''))
 )
 
+// START TESTING
+type GridStateV2 = { grid: Grid, steps: number, keys: string[] }
+// const keysCache: Record<string, GridStateV2[]> = {}
+const keysCache: Record<string, AvailableKey[]> = {}
+function processQuadrantsV2(gridStates: GridStateV2[], positions: Position[]) {
+  // const cacheStr = `${JSON.stringify(positions)},${JSON.stringify(gridStates.keys)}`
+  // console.log(cacheStr, positions, gridStates.keys)
+  // if (keysCache[cacheStr]) {
+  //   console.log('used keysCache')
+  //   return keysCache[cacheStr]
+  // }
+  if (positions.length === 0) {
+    // console.log(gridStates.map(gridState => gridState.keys))
+    // throw Error('processed quadrant')
+    // keysCache[cacheStr] = gridStates
+    return gridStates
+  }
+  const newGrids = gridStates.map(({ grid, steps, keys }) => {
+    const pos = positions[0]
+    const cacheStr = `${JSON.stringify(pos)},${JSON.stringify(keys.toSorted())}`
+    // const cacheStr = JSON.stringify(grid)
+    // console.log(cacheStr)
+    let available: AvailableKey[];
+    if (keysCache[cacheStr]) {
+      // console.log('used key cache')
+      available = keysCache[cacheStr]
+    } else {
+      const tempTime = Bun.nanoseconds()
+      available = availableKeys(grid, [{ pos, steps: 0 }])
+      availableKeysTime += Bun.nanoseconds() - tempTime
+      keysCache[cacheStr] = available
+    }
+    // const available = availableKeys(grid, [{ pos, steps: 0 }])
+    return available.map(newPos => ({
+      grid: updateGrid(grid, newPos.key, pos, newPos.pos),
+      steps: steps + newPos.steps,
+      keys: keys.concat(newPos.key)
+    }))
+  }).flat()
+  return processQuadrantsV2(newGrids, positions.slice(1))
+}
+
+const cacheV4: Record<string, number> = {}
+const miniCache: Record<string, number> = {}
+function pathLengthsV2(grid: Grid, steps = 0, keys = [] as string[], isFirst?: true, depth = 0): number {
+  const cacheStr = JSON.stringify(grid)
+  if (cacheV4[cacheStr]) return cacheV4[cacheStr]
+  const starts = findMultiple(grid, '@')
+  if (allKeysCollected(grid)) return cacheV4[cacheStr] = steps
+  // if (allKeysCollected(grid)) return steps
+
+  let gridStates
+  if (starts.length === 1) {
+    gridStates = processQuadrantsV2([{ grid, steps: 0, keys }], [ starts[0] ])
+  } else {
+    const knownBad: string[] = []
+    gridStates = combinations.map(combo => {
+      if (isBad(knownBad, combo.join(','))) return []
+      const posOrder = combo.map(i => starts[i])
+      const newGrids = processQuadrantsV2([{ grid, steps: 0, keys }], posOrder)
+      if (newGrids.length === 0) knownBad.push(combo.join(','))
+      return newGrids
+    }).flat()
+  }
+
+  // best state is always the first one, but only if isFirst is true,
+  // this is almost certainly a coincidence
+  // gridState = (isFirst ? [ gridStates[0] ] : gridStates)
+
+  const result = gridStates.reduce((lowest, gridState, i) => {
+    // TESTING, turbo mode
+    let totalSteps;
+    if (miniCache[cacheStr]) {
+      // console.log(cacheV4[testStr])
+      console.log('miniCache', miniCache[cacheStr])
+      totalSteps = gridState.steps + miniCache[cacheStr]
+    } else {
+      const result = pathLengthsV2(gridState.grid, steps, gridState.keys, undefined, depth + 1)
+      totalSteps = gridState.steps + result
+      miniCache[cacheStr] = result
+    }
+
+    // WORKING
+    // const totalSteps = gridState.steps + pathLengthsV2(gridState.grid, steps, gridState.keys, undefined, depth + 1)
+
+    if (isFirst) console.log(
+      i + 1,
+      gridStates.length,
+      totalSteps, lowest,
+      'BEST', Math.min(totalSteps, lowest),
+      'TIME', (Bun.nanoseconds() - startTime) / 10**9
+    )
+    return totalSteps < lowest ? totalSteps : lowest
+  }, Infinity)
+  return cacheV4[cacheStr] = result
+}
+function pathLengthsV3(grid: Grid, steps = 0, keys = [] as string[], isFirst?: true, depth = 0): number {
+  const cacheStr = JSON.stringify(grid)
+  // if (cacheV4[cacheStr]) return cacheV4[cacheStr]
+  const starts = findMultiple(grid, '@')
+  if (allKeysCollected(grid)) return cacheV4[cacheStr] = steps
+  // if (allKeysCollected(grid)) return steps
+
+  let gridStates
+  if (starts.length === 1) {
+    gridStates = processQuadrantsV2([{ grid, steps: 0, keys }], [ starts[0] ])
+  } else {
+    const knownBad: string[] = []
+    gridStates = combinations.map(combo => {
+      if (isBad(knownBad, combo.join(','))) return []
+      const posOrder = combo.map(i => starts[i])
+      const newGrids = processQuadrantsV2([{ grid, steps: 0, keys }], posOrder)
+      if (newGrids.length === 0) knownBad.push(combo.join(','))
+      return newGrids
+    }).flat()
+  }
+
+  // best state is always the first one, but only if isFirst is true,
+  // this is almost certainly a coincidence
+  // gridState = (isFirst ? [ gridStates[0] ]  : gridStates)
+
+  const result = gridStates.reduce((lowest, gridState, i) => {
+    // TESTING, turbo mode
+    // let totalSteps;
+    // if (miniCache[cacheStr]) {
+    //   // console.log(cacheV4[testStr])
+    //   console.log('miniCache', miniCache[cacheStr])
+    //   totalSteps = gridState.steps + miniCache[cacheStr]
+    // } else {
+    //   const result = pathLengthsV2(gridState.grid, steps, gridState.keys, undefined, depth + 1)
+    //   totalSteps = gridState.steps + result
+    //   miniCache[cacheStr] = result
+    // }
+
+    // WORKING
+    const totalSteps = pathLengthsV2(gridState.grid, gridState.steps, gridState.keys, undefined, depth + 1)
+
+    if (isFirst) console.log(
+      i + 1,
+      gridStates.length,
+      totalSteps, lowest,
+      'BEST', Math.min(totalSteps, lowest),
+      'TIME', (Bun.nanoseconds() - startTime) / 10**9
+    )
+    return totalSteps < lowest ? totalSteps : lowest
+  }, Infinity)
+  return cacheV4[cacheStr] = result
+}
+// END TESTING
+
 // TO-DO
 // re-write that ugly chatGPT function
 //
 // Ideas for further optimization
-// faster way to recognize a unique graph, 
+// faster way to recognize a unique graph,
 //  - JSON.stringify is responsible for about 25% of the total runtime
 //  - try making cache key from current position and available keys
 // try to memoize availableKeys()
 //  - this function is responsble for about 75% of the total runtime
+//
+// Two ideas:
+// currently steps is always 0 and we accumulate as we go back up the tree
+//  - we should accumulate as we go down the tree
+//  - once no keys remain, set that value to a global best variable,
+//    - then for each level of the tree, check if current steps > best, if it is skip, its already too long
+// look at turbo mode in pathLengthsV2, this seems to provide massive improvements, and is only off by a little bit
 
-const part1 = pathLengths(grid, 0, true)
+let availableKeysTime = 0
+// const part1 = pathLengths(grid, 0, true)
+const part1 = pathLengthsV2(grid, 0, [], true)
+// const part1 = pathLengthsV3(grid, 0, [], true)
 console.log(part1, [ 8, 86, 132, 136, 81, 3866 ].includes(part1))
+console.log('availableKeys time', availableKeysTime / 10**9)
 
-const part2 = pathLengths(splitGrid(grid), 0, true)
-console.log(part2, [ 8, 24, 32, 72, 1842 ].includes(part2))
+// const part2 = pathLengths(splitGrid(grid), 0, true)
+// const part2 = pathLengthsV2(splitGrid(grid), 0, [], true)
+// console.log(part2, [ 8, 24, 32, 72, 1842 ].includes(part2))
 
 console.log(`TIME: ${(Bun.nanoseconds() - startTime) / 10**9} seconds`)
