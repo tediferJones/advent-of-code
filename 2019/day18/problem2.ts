@@ -217,43 +217,50 @@ const grid = (
 // START TESTING
 type GridStateV2 = { grid: Grid, steps: number, keys: string[] }
 // const keysCache: Record<string, GridStateV2[]> = {}
-const keysCache: Record<string, AvailableKey[]> = {}
-function processQuadrantsV2(gridStates: GridStateV2[], positions: Position[]) {
-  // const cacheStr = `${JSON.stringify(positions)},${JSON.stringify(gridStates.keys)}`
-  // console.log(cacheStr, positions, gridStates.keys)
-  // if (keysCache[cacheStr]) {
-  //   console.log('used keysCache')
-  //   return keysCache[cacheStr]
+const keysCache: Record<string, GridStateV2[]> = {}
+function processQuadrantsV2(gridStates: GridStateV2[], positions: Position[]): GridStateV2[] {
+  // const tempCacheStr = JSON.stringify(gridStates)
+  // if (keysCache[tempCacheStr]) {
+  //   return keysCache[tempCacheStr]
   // }
   if (positions.length === 0) {
-    // console.log(gridStates.map(gridState => gridState.keys))
-    // throw Error('processed quadrant')
-    // keysCache[cacheStr] = gridStates
     return gridStates
   }
   const newGrids = gridStates.map(({ grid, steps, keys }) => {
-    const pos = positions[0]
-    const cacheStr = `${JSON.stringify(pos)},${JSON.stringify(keys.toSorted())}`
-    // const cacheStr = JSON.stringify(grid)
-    // console.log(cacheStr)
-    let available: AvailableKey[];
+    const cacheStr = JSON.stringify(grid)
+
+    // TESTING
+    // const pos = positions[0]
+    // let available
     if (keysCache[cacheStr]) {
-      // console.log('used key cache')
-      available = keysCache[cacheStr]
-    } else {
-      const tempTime = Bun.nanoseconds()
-      available = availableKeys(grid, [{ pos, steps: 0 }])
-      availableKeysTime += Bun.nanoseconds() - tempTime
-      keysCache[cacheStr] = available
+      throw Error('found recycable cache str')
+      return keysCache[cacheStr]
     }
-    // const available = availableKeys(grid, [{ pos, steps: 0 }])
-    return available.map(newPos => ({
+    // else {
+    //   const tempTime = Bun.nanoseconds()
+    //   available = availableKeys(grid, [{ pos, steps: 0 }])
+    //   availableKeysTime += Bun.nanoseconds() - tempTime
+    // }
+
+    // WORKING
+    const pos = positions[0]
+    const tempTime = Bun.nanoseconds()
+    const available = availableKeys(grid, [{ pos, steps: 0 }])
+    availableKeysTime += Bun.nanoseconds() - tempTime
+
+    const gridModStart = Bun.nanoseconds()
+    const result = available.map(newPos => ({
       grid: updateGrid(grid, newPos.key, pos, newPos.pos),
       steps: steps + newPos.steps,
       keys: keys.concat(newPos.key)
     }))
+    gridModTime += Bun.nanoseconds() - gridModStart
+    keysCache[cacheStr] = result
+    return result
   }).flat()
-  return processQuadrantsV2(newGrids, positions.slice(1))
+  const result = processQuadrantsV2(newGrids, positions.slice(1))
+  // keysCache[tempCacheStr] = result
+  return result
 }
 
 const cacheV4: Record<string, number> = {}
@@ -362,6 +369,113 @@ function pathLengthsV3(grid: Grid, steps = 0, keys = [] as string[], isFirst?: t
   }, Infinity)
   return cacheV4[cacheStr] = result
 }
+
+const cache9001: Record<string, number> = {}
+function pathLengthsV4(gridState: GridStateV2, best = Infinity, isFirst?: true): number {
+  const cacheStr = JSON.stringify(gridState.grid)
+  if (gridState.steps > best) return Infinity
+  if (cache9001[cacheStr]) {
+    return gridState.steps + cache9001[cacheStr]
+  }
+  if (gridState.keys.length === maxKeys) {
+    return gridState.steps
+  }
+  const starts = findMultiple(gridState.grid, '@')
+
+  const gridGenStartTime = Bun.nanoseconds()
+  let gridStates
+  if (starts.length === 1) {
+    gridStates = processQuadrantsV2([ gridState ], [ starts[0] ])
+  } else {
+    throw Error('shouldnt be here unless running part 2')
+    const knownBad: string[] = []
+    gridStates = combinations.map(combo => {
+      if (isBad(knownBad, combo.join(','))) return []
+      const posOrder = combo.map(i => starts[i])
+      const newGrids = processQuadrantsV2([ gridState ], posOrder)
+      if (newGrids.length === 0) knownBad.push(combo.join(','))
+      return newGrids
+    }).flat()
+  }
+  generateGridsTime += Bun.nanoseconds() - gridGenStartTime
+  // console.log('output grids')
+  // gridStates.forEach(gridState => printGrid(gridState.grid))
+
+  const result = gridStates.reduce((lowest, miniGridState, i) => {
+    // const miniCacheStr = JSON.stringify(miniGridState.grid)
+    const totalSteps = pathLengthsV4(miniGridState, best)
+    // let totalSteps
+    // if (cache9001[miniCacheStr]) {
+    //   totalSteps = miniGridState.steps + cache9001[miniCacheStr]
+    // } else {
+    //   totalSteps = pathLengthsV4(miniGridState, best)
+    // }
+    // if (totalSteps < best) best = totalSteps
+    if (isFirst) console.log(
+      i + 1,
+      gridStates.length,
+      totalSteps, lowest,
+      'BEST', Math.min(totalSteps, lowest),
+      'TIME', (Bun.nanoseconds() - startTime) / 10**9
+    )
+    return Math.min(lowest, totalSteps)
+  }, Infinity)
+  cache9001[cacheStr] = result - gridState.steps
+  return result
+}
+
+function insertSorted(queue: GridStateV2[], toAdd: GridStateV2[], i = 0) {
+  if (!toAdd.length) return queue
+  if (!queue[i]) return queue.concat(toAdd)
+  if (queue[i].steps > toAdd[0].steps) {
+    return insertSorted(queue.toSpliced(i, 0, toAdd[0]), toAdd.slice(1), i)
+  }
+  return insertSorted(queue, toAdd, i + 1)
+}
+
+function getBitMask(keys: string[], pos: Position) {
+  const keyMask = Array(maxKeys).fill(0)
+  keys.forEach(key => {
+    // 97 is ascii for 'a', thus a = 0, b = 1, etc...
+    const keyCode = key.charCodeAt(0) - 97
+    keyMask[keyCode] = 1
+  })
+  return Number(`0b${pos.row.toString(2)}${pos.col.toString(2)}${keyMask.join('')}`)
+}
+
+const bfsSet = new Set<number>()
+function gridBfs(queue: GridStateV2[]) {
+  const current = queue.shift()
+  if (!current) return Infinity
+  const starts = findMultiple(current.grid, '@')
+  const cacheStr = getBitMask(current.keys, starts[0])
+  if (bfsSet.has(cacheStr)) return gridBfs(queue)
+  bfsSet.add(cacheStr)
+  // console.log(current.steps)
+  if (current.keys.length === maxKeys) return current.steps
+
+  let nextGridStates: GridStateV2[]
+  if (starts.length === 1) {
+    nextGridStates = processQuadrantsV2([ current ], [ starts[0] ])
+  } else {
+    const knownBad: string[] = []
+    nextGridStates = combinations.map(combo => {
+      if (isBad(knownBad, combo.join(','))) return []
+      const posOrder = combo.map(i => starts[i])
+      const newGrids = processQuadrantsV2([ current ], posOrder)
+      if (newGrids.length === 0) knownBad.push(combo.join(','))
+      return newGrids
+    }).flat()
+  }
+
+  // return gridBfs(insertSorted(queue, nextGridStates))
+  // queue.push(...nextGridStates)
+  // return gridBfs(queue)
+  return gridBfs(
+    queue.concat(nextGridStates).toSorted((a, b) => a.steps - b.steps)
+  )
+}
+
 // END TESTING
 
 // TO-DO
@@ -380,16 +494,39 @@ function pathLengthsV3(grid: Grid, steps = 0, keys = [] as string[], isFirst?: t
 //  - once no keys remain, set that value to a global best variable,
 //    - then for each level of the tree, check if current steps > best, if it is skip, its already too long
 // look at turbo mode in pathLengthsV2, this seems to provide massive improvements, and is only off by a little bit
+//
+// NEW IDEA: do bfs instead of dfs
+//  - in addition, maybe sort by least number of steps
+//  - dont modify grid, track keys and current position
+//    - availableKeys() will need to be modified so that we can pass through doors if we have the key
 
 let availableKeysTime = 0
+let generateGridsTime = 0
+let gridModTime = 0
+const maxKeys = grid.reduce((total, row) => {
+  return total + row.reduce((miniTotal, cell) => {
+    return miniTotal + Number(charIsKey(cell))
+  }, 0)
+}, 0)
+console.log(maxKeys)
 // const part1 = pathLengths(grid, 0, true)
-const part1 = pathLengthsV2(grid, 0, [], true)
+// const part1 = pathLengthsV2(grid, 0, [], true)
 // const part1 = pathLengthsV3(grid, 0, [], true)
+// const part1 = pathLengthsV4({ grid, steps: 0, keys: [] }, Infinity, true)
+const part1 = gridBfs([{ grid, steps: 0, keys: [] }])
 console.log(part1, [ 8, 86, 132, 136, 81, 3866 ].includes(part1))
 console.log('availableKeys time', availableKeysTime / 10**9)
+console.log('gridMod time', gridModTime / 10**9)
+// console.log('generateGrids time', generateGridsTime / 10**9)
+// Object.keys(cache9001).forEach(key => {
+//   console.log(cache9001[key])
+//   printGrid(JSON.parse(key))
+// })
+// console.log(Object.values(cache9001).map(idk => idk.endSteps))
 
 // const part2 = pathLengths(splitGrid(grid), 0, true)
 // const part2 = pathLengthsV2(splitGrid(grid), 0, [], true)
+// const part2 = gridBfs([{ grid: splitGrid(grid), steps: 0, keys: [] }])
 // console.log(part2, [ 8, 24, 32, 72, 1842 ].includes(part2))
 
 console.log(`TIME: ${(Bun.nanoseconds() - startTime) / 10**9} seconds`)
