@@ -8,13 +8,6 @@ const directions = [
   { row:  1, col:  0 },
 ]
 
-function posAtChar(grid: string[][], char: string) {
-  const row = grid.findIndex(row => row.includes(char))
-  if (row === -1) return
-  const col = grid[row].findIndex(cell => cell === char)
-  return { row, col }
-}
-
 function charAtPos(grid: string[][], pos: Position) {
   return grid?.[pos.row]?.[pos.col]
 }
@@ -67,22 +60,12 @@ function availableKeys(
     const char = charAtPos(grid, pos)
     if (charIsDoor(char) && !current.keys.has(char.toLowerCase())) {
       return
-      // return availableKeys(grid, queue, seen, answers)
     }
     if (charIsKey(char) && !current.keys.has(char)) {
       return answers.push({
         ...current,
         keys: new Set(current.keys).add(char)
       })
-      // return availableKeys(
-      //   grid,
-      //   queue,
-      //   seen,
-      //   answers.concat({
-      //     ...current,
-      //     keys: new Set(current.keys).add(char)
-      //   })
-      // )
     }
     directions.forEach(dir => {
       const newPos = translatePos(pos, dir)
@@ -102,105 +85,128 @@ function availableKeys(
 }
 
 function getBitMask(state: GridStateV3, maxKeyCount: number) {
-  // return [ ...state.keys ].join(',')
   const keys = Array(maxKeyCount).fill(0)
   state.keys.forEach(key => keys[key.charCodeAt(0) - 97] = 1)
   return `${JSON.stringify(state.pos)},${keys.join('')}`
-  // return keys.join('')
 }
 
 const set = new Set<string>()
-const cache: Record<string, number> = {}
-const cacheV2: Record<string, { steps: number, keyCount: number }> = {}
-function shortestPath(
+function bfs(
   grid: string[][],
   queue: GridStateV3[],
   maxKeyCount: number,
   best: number = Infinity
 ) {
-  const masterKey = cache['1'.repeat(maxKeyCount)]
   const current = queue.shift()
-  if (!current) {
-    console.log(cache)
-    return masterKey
+  if (!current) return best
+
+  console.log(current.steps)
+  if (current.keys.size === maxKeyCount) {
+    return current.steps
+    // best = current.steps
+    // return bfs(grid, queue, maxKeyCount, best)
   }
-  // console.log(cache)
-  // printGrid(grid, current)
-  // console.write(`\rcurrent step count ${current.steps}`)
-  // console.log(current)
-  // console.log('queue length', queue.length)
-
-  // Cache key is obtained keys, points to steps to get there
-  // try to get this working with example2.txt
-  // if (current.steps > masterKey) {
-  //   console.log('skipping already found faster path', { current: current.steps, masterKey })
-  //   return shortestPath(grid, queue, maxKeyCount, best)
-  // }
-  // const cacheStr = getBitMask(current, maxKeyCount)
-  // // console.log(cacheStr)
-  // if (current.steps > cache[cacheStr]) {
-  //   // printGrid(grid, current)
-  //   console.log('skipping already been here with less steps')
-  //   return shortestPath(grid, queue, maxKeyCount, best)
-  // }
-  // cache[cacheStr] = current.steps
-
-  // TESTING
-  // if (current.keys.size === maxKeyCount) {
-  //   if (current.steps < best) best = current.steps
-  //   return shortestPath(grid, queue, maxKeyCount, best)
-  // }
-  // const cacheStr = JSON.stringify(current.pos)
-  // if (cacheV2[cacheStr]) {
-  //   const cached = cacheV2[cacheStr]
-  //   // if (cached.steps <= current.steps && cached.keyCount >= current.keys.size) {
-  //   //   return shortestPath(grid, queue, maxKeyCount, best)
-  //   // }
-  //   // if (cached.steps < current.steps) {
-  //   //   return shortestPath(grid, queue, maxKeyCount, best)
-  //   // }
-  //   if (cached.keyCount > current.keys.size) {
-  //     return shortestPath(grid, queue, maxKeyCount, best)
-  //   }
-  //   // if (cached.steps < current.steps || cached.keyCount > current.keys.size) {
-  //   //   return shortestPath(grid, queue, maxKeyCount, best)
-  //   // }
-  // }
-  // cacheV2[cacheStr] = { steps: current.steps, keyCount: current.keys.size }
-
-  // WORKS BUT SLOW
-  // Where bitmask is just keys
-  // if (current.keys.size === maxKeyCount) {
-  //   console.log('FOUND ANSWER', current.steps)
-  //   if (current.steps <= best) best = current.steps
-  //   return shortestPath(grid, queue, maxKeyCount, best)
-  // }
-  // const cacheStr = getBitMask(current, maxKeyCount)
-  // if (current.steps >= cache[cacheStr]) {
-  //   return shortestPath(grid, queue, maxKeyCount, best)
-  // }
-  // cache[cacheStr] = current.steps
-
-  // WORKING
-  // Use position and keys for cacheKey
-  if (current.keys.size === maxKeyCount) return current.steps
   const setStr = getBitMask(current, maxKeyCount)
-  if (set.has(setStr)) return shortestPath(grid, queue, maxKeyCount, best)
+  if (set.has(setStr)) return bfs(grid, queue, maxKeyCount, best)
   set.add(setStr)
 
   const newGridStates = availableKeys(grid, [ current ])
-  // .filter(newGridState => {
-  //   const setStr = getBitMask(newGridState, maxKeyCount)
-  //   return !set.has(setStr)
-  // })
-  // console.log(newGridStates)
-  return shortestPath(
+  return bfs(
     grid,
     queue.concat(newGridStates).toSorted((a, b) => a.steps - b.steps),
-    // queue.concat(newGridStates).toSorted((a, b) => b.keys.size - a.keys.size),
-    // queue.concat(newGridStates),
     maxKeyCount,
     best
+  )
+}
+
+function getBitMaskV2(gridState: GridStateV3, maxKeyCount: number) {
+  let keyMask = 0n;
+  gridState.keys.forEach(key => {
+    keyMask |= (1n << BigInt(key.charCodeAt(0) - 97));
+  });
+
+  // Convert positions into a bitmask (stored in upper bits)
+  let posMask = 0n;
+  gridState.pos.forEach(pos => {
+    const bitIndex = pos.row * gridWidth + pos.col;
+    posMask |= (1n << BigInt(maxKeyCount + bitIndex));  // Shift beyond keyMask bits
+  });
+
+  // Merge keyMask and posMask into a single unique bigint
+  return (keyMask | posMask).toString();
+}
+
+function getBitMaskV3(gridState: GridStateV3, maxKeyCount: number) {
+  // const keyMask = Array(maxKeyCount).fill(0)
+  let keyMask = 0
+  gridState.keys.forEach(key => {
+    // keyMask[key.charCodeAt(0) - 97] = 1
+    keyMask |= key.charCodeAt(0) - 97
+  })
+
+  const posMask = gridState.pos.reduce((posMask, pos) => {
+    return posMask + pos.row.toString().padStart(digitSize.height, '0') + pos.col.toString().padStart(digitSize.width, '0')
+  }, '')
+
+  // return keyMask.join('') + posMask
+  return keyMask + posMask
+}
+
+const simpleCache: Record<string, number> = {}
+let simpleBest = Infinity
+function dfsSimple(
+  grid: string[][],
+  gridState: GridStateV3,
+  maxKeyCount: number
+): number {
+  // const cacheStr = getBitMask(gridState, maxKeyCount)
+  // const startMaskTime = Bun.nanoseconds()
+  const cacheStr = getBitMaskV2(gridState, maxKeyCount)
+  // const cacheStr = getBitMaskV3(gridState, maxKeyCount)
+  // console.write(`\rRun time: ${(Bun.nanoseconds() - startTime) / 10**9}`)
+  if (gridState.keys.size === maxKeyCount) {
+    if (gridState.steps < simpleBest) simpleBest = gridState.steps
+    return gridState.steps
+  }
+  if (simpleCache[cacheStr]) {
+    const shortCutResult = gridState.steps + simpleCache[cacheStr]
+    if (shortCutResult < simpleBest) simpleBest = shortCutResult
+    return shortCutResult
+  }
+  const nextGridStates = availableKeys(grid, [ gridState ])
+  const result = nextGridStates.reduce((lowest, gridState) => {
+    if (gridState.steps > simpleBest) return lowest
+    return Math.min(dfsSimple(grid, gridState, maxKeyCount), lowest)
+  }, Infinity)
+  simpleCache[cacheStr] = result - gridState.steps
+  return result
+}
+
+const bfsCache: Record<string, number> = {}
+let bfsBest = Infinity
+function bfsSimple(
+  grid: string[][],
+  queue: GridStateV3[],
+  maxKeyCount: number,
+) {
+  const current = queue.shift()
+  if (!current) return bfsBest
+  const cacheStr = getBitMaskV2(current, maxKeyCount)
+  if (current.steps > bfsBest) return bfsSimple(grid, queue, maxKeyCount)
+  if (current.steps >= bfsCache[cacheStr]) return bfsSimple(grid, queue, maxKeyCount)
+  bfsCache[cacheStr] = current.steps
+  if (current.keys.size === maxKeyCount) {
+    console.log('found', current.steps)
+    if (current.steps < bfsBest) bfsBest = current.steps
+    return bfsSimple(grid, queue, maxKeyCount)
+  }
+
+  const nextGridStates = availableKeys(grid, [ current ])
+  return bfsSimple(
+    grid,
+    // queue.concat(nextGridStates).toSorted((a, b) => a.steps - b.steps),
+    queue.concat(nextGridStates),
+    maxKeyCount,
   )
 }
 
@@ -238,14 +244,6 @@ function printGrid(grid: string[][], state: GridStateV3) {
   updatedGrid.forEach(row => console.log(row.join('')))
 }
 
-// function preComputePaths(grid: string[][], queue: GridStateV3[], cache: Record<string, number>) {
-//   const current = queue.shift()
-//   if (!current) return 
-//   const nextStates = availableKeys(grid, [ current ])
-//   queue.push(...nextStates)
-//   return preComputePaths(grid, queue, cache)
-// }
-
 const startTime = Bun.nanoseconds()
 const grid = (
   (await Bun.file(process.argv[2]).text())
@@ -254,19 +252,31 @@ const grid = (
   .map(row => row.split(''))
 )
 
-const part1 = shortestPath(grid, [{
+const initialStatePart1 = {
   pos: findMultiple(grid, '@'),
   steps: 0,
   keys: new Set<string>(),
-}], getMaxKeyCount(grid))
+}
+const keyCount = getMaxKeyCount(grid)
+const gridHeight = grid.length
+const gridWidth = grid[0].length
+const digitSize = { height: gridHeight.toString().length, width: gridWidth.toString().length }
+let maskTime = 0
+// const part1 = bfs(grid, [ initialStatePart1 ], keyCount)
+// const part1 = dfs(grid, initialStatePart1, keyCount)
+const part1 = dfsSimple(grid, initialStatePart1, keyCount)
+// const part1 = bfsSimple(grid, [ initialStatePart1 ], keyCount)
 console.log(part1, [ 8, 86, 132, 136, 81, 3866 ].includes(part1))
 
-// const newGrid = splitGrid(grid)
-// const part2 = shortestPath(newGrid, [{
-//   pos: findMultiple(newGrid, '@'),
-//   steps: 0,
-//   keys: new Set<string>(),
-// }], getMaxKeyCount(newGrid))
-// console.log(part2, [ 8, 24, 32, 72, 1842 ].includes(part2))
+const newGrid = splitGrid(grid)
+const initialStatePart2 = {
+  pos: findMultiple(newGrid, '@'),
+  steps: 0,
+  keys: new Set<string>(),
+}
+// const part2 = bfs(newGrid, [ initialStatePart2 ], getMaxKeyCount(newGrid))
+const part2 = dfsSimple(newGrid, initialStatePart2, getMaxKeyCount(newGrid))
+console.log(part2, [ 8, 24, 32, 72, 1842 ].includes(part2))
+// console.log('cache size', Object.keys(simpleCache).length)
 
 console.log(`TIME: ${(Bun.nanoseconds() - startTime) / 10**9} seconds`)
