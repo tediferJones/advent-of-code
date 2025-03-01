@@ -53,8 +53,9 @@ function traceIndex(index: number, deckSize: number, shuffles: string[]) {
   return traceIndex(index, deckSize, shuffles.slice(1))
 }
 
-const repeatDetector = new Set<number>()
 const results: number[] = []
+const resSet = new Set<number>()
+let iterCount = 0
 function deshuffleMultiple(
   index: number,
   deckSize: number,
@@ -64,31 +65,40 @@ function deshuffleMultiple(
 ) {
   // console.log(shuffleCount)
   if (shuffleCount === 0) return index
+  // console.log(`${foundRepeat} ${shuffleCount}`)
+  // console.log(foundRepeat, index, `cycle: ${Math.floor(iterCount / results.length)}`)
+  // console.write(`\r${foundRepeat}, cycle: ${Math.floor(iterCount / results.length)}, ${shuffleCount}`)
+  console.write(`\r${foundRepeat}, ${shuffleCount}`)
+  if (shuffleCount === 101741578825957) console.log('\ncycle start?')
+  const cycleLen = findCycle(results.toReversed())
+  if (cycleLen) {
+    console.log('cycle len', cycleLen)
+    throw Error('FOUND CYCLE')
+  }
+  // if (resSet.has(index)) {
+  //   console.log(`result index ${results.findIndex(i => i === index)}`)
+  //   throw Error('found repeat')
+  // }
+  // resSet.add(index)
+  // if (!foundRepeat && results[0] === index) {
+  //   console.log('found repeat')
+  //   return deshuffleMultiple(
+  //     index,
+  //     deckSize,
+  //     revShuffles,
+  //     // shuffleCount % repeatDetector.size,
+  //     shuffleCount,
+  //     true
+  //   )
+  // }
+  // if (foundRepeat) {
+  //   if (results[iterCount % results.length] !== index) {
+  //     throw Error('mismatch in cycle')
+  //   }
+  // }
   results.push(index)
-  console.log(`${foundRepeat} ${shuffleCount}`)
-  if (!foundRepeat && repeatDetector.has(index)) {
-    // console.log(repeatDetector.size)
-    // console.log('found repeat', shuffleCount)
-    // const cycleLength = findCycle(results)
-    // if (cycleLength) {
-    //   console.log('cycle length')
-    //   throw Error('found cycle')
-    // }
-    return deshuffleMultiple(
-      index,
-      deckSize,
-      revShuffles,
-      // shuffleCount % repeatDetector.size,
-      shuffleCount,
-      true
-    )
-    // throw Error('found repeat')
-  }
-  if (foundRepeat && !repeatDetector.has(index)) {
-    throw Error('cycle is broken')
-  }
-  repeatDetector.add(index)
   const newIndex = traceIndex(index, deckSize, revShuffles)
+  iterCount++
   return deshuffleMultiple(
     newIndex,
     deckSize,
@@ -233,20 +243,20 @@ const testing = deshuffleMultiple(targetIndex, deckSize, revShuffles, shuffleCou
 // console.log(working)
 console.log(testing)
 
-function findCycle(arr: number[], index = cacheStart, offSet = 1) {
-  // console.log(arr, index, offSet, arr[index], arr[index + offSet])
-  if (index === offSet) return offSet
-  if (offSet > Math.floor(arr.length / 2)) {
-    cacheStart = offSet - 1
-    return false
-  }
-  if (arr[index] !== arr[index + offSet]) return findCycle(arr, 0, offSet + 1)
-  return findCycle(
-    arr,
-    index + 1,
-    offSet
-  )
-}
+// function findCycle(arr: number[], index = cacheStart, offSet = 1) {
+//   // console.log(arr, index, offSet, arr[index], arr[index + offSet])
+//   if (index === offSet) return offSet
+//   if (offSet > Math.floor(arr.length / 2)) {
+//     cacheStart = offSet - 1
+//     return false
+//   }
+//   if (arr[index] !== arr[index + offSet]) return findCycle(arr, 0, offSet + 1)
+//   return findCycle(
+//     arr,
+//     index + 1,
+//     offSet
+//   )
+// }
 // console.log(findCycle([1,2,3,1,2,3]))
 
 // test on example, set shuffle count to a number where we can find a repeat with deshuffle
@@ -259,3 +269,18 @@ function findCycle(arr: number[], index = cacheStart, offSet = 1) {
 
 // const part1 = shuffledCards.findIndex(num => num === 2019)
 // console.log(part1, [ 5169 ].includes(part1))
+
+function matchLength(arr: number[], length: number, i = 0) {
+  if (i === length) return true;
+  if (arr[arr.length - i - 1] !== arr[arr.length - (length + i) - 1]) return false;
+  return matchLength(arr, length, i + 1);
+}
+
+function findCycle(vels: number[], length = 1): number | undefined {
+  if (length > Math.floor(vels.length / 2)) return;
+  const foundCycle = matchLength(vels, length);
+  if (foundCycle) return length;
+  return findCycle(vels, length + 1);
+}
+
+// console.log(findCycle([9,1,2,3,1,2,3]))
