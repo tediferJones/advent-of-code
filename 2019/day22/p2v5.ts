@@ -1,6 +1,116 @@
 // Guide: https://codeforces.com/blog/entry/72593
 
-type Eq = { a: number, b: number, deckSize: number }
+// type Eq = { a: number, b: number, deckSize: number }
+// to represent y = (mx + b) % mod
+type Eq = { m: number, b: number }
+type EqMod = Eq & { mod: number }
+type Shuffles = 'new stack' | 'cut' | 'increment'
+
+const shuffleTypesV2: Record<Shuffles, (n: number) => Eq> = {
+  'new stack': () => ({ m: -1, b: -1  }),
+  'cut': (n) => ({ m: 1, b: n * -1 }),
+  'increment': (n) => ({ m: n, b: 0 }),
+}
+
+// because javascript is a dumpster fire
+function mod(n: number, m: number) {
+  return ((n % m) + m) % m
+}
+
+function composeEq(f: Eq, g: EqMod) {
+  // compose function such that result is f(g(x))
+  // where f is the current shuffle and g is the existing eq
+  //
+  // f(g(x))
+  // fm*g(x) + fb
+  // fm(gm + gb) + fb
+  // fm*gm + fm*gb + fb
+  //
+  // m = fm*gm
+  // b = fm*gb + fb
+  return {
+    m: mod(f.m * g.m, g.mod),
+    b: mod((f.m * g.b) + f.b, g.mod),
+    mod: g.mod
+  }
+}
+
+function buildEqV2(eq: EqMod, shuffles: string[]) {
+  const shuffle = shuffles[0]
+  if (!shuffle) return eq
+  const shuffleType = Object.keys(shuffleTypesV2).find(key => shuffle.includes(key)) as Shuffles
+  if (!shuffleType) throw Error(`cannot find shuffle type for: ${shuffle}`)
+  const [ num ] = shuffle.match(/-?\d+/)?.map(Number) || [ Infinity ]
+  // console.log(shuffleType, num)
+  const newEq = composeEq(shuffleTypesV2[shuffleType](num), eq)
+  // console.log(newEq)
+  return buildEqV2(newEq, shuffles.slice(1))
+}
+
+function showDeckV2(eq: EqMod) {
+  const arr = Array.from({ length: eq.mod }).map((_, i) => i)
+  return arr.reduce((arr, i) => {
+    const newIndex = ((eq.m * i) + eq.b) % eq.mod
+    return arr.with(newIndex, i)
+  }, arr)
+}
+
+// binary exponentation but with composing functions
+function repeatShuffle(eq: EqMod, count: number) {
+  let g = { m: 1, b: 0, mod: eq.mod }
+  while (count > 0) {
+    if (count % 2) g = composeEq(g, eq)
+    count = Math.floor(count / 2)
+    eq = composeEq(eq, eq)
+  }
+  return g
+}
+
+// const shuffleTypesV3: Record<Shuffles, (eq: EqMod, n: number) => EqMod> = {
+//   'new stack': (eq) => {
+//     // compose eq with y = -x - 1
+//     // y = -(eq.m * x + eq.b) - 1
+//     // y = -eq.m * x - eq.b - 1
+//     return {
+//       m: eq.m * -1,
+//       b: (eq.b * -1) - 1,
+//       mod: eq.mod
+//     }
+//   },
+//   'cut': (eq, n) => {
+//     // compose eq with y = x - n
+//     // y = (eq.m * x + eq.b) - n
+//     // y = eq.m * x + eq.b - n
+//     return {
+//       m: eq.m,
+//       b: eq.b - n,
+//       mod: eq.mod
+//     }
+//   },
+//   'increment': (eq, n) => {
+//     // compose eq with y = n * x
+//     // y = n * (eq.m * x + eq.b)
+//     // y = n * eq.m * x + n * eq.b
+//     console.log('increment', n, eq.m * n)
+//     return {
+//       m: eq.m * n,
+//       b: eq.b * n,
+//       mod: eq.mod
+//     }
+//   }
+// }
+// 
+// function buildEqV3(eq: EqMod, shuffles: string[]) {
+//   const shuffle = shuffles[0]
+//   if (!shuffle) return eq
+//   const shuffleType = Object.keys(shuffleTypesV2).find(key => shuffle.includes(key)) as Shuffles
+//   if (!shuffleType) throw Error(`cannot find shuffle type for: ${shuffle}`)
+//   const [ num ] = shuffle.match(/-?\d+/)?.map(Number) || [ Infinity ]
+//   console.log(shuffleType, num)
+//   const newEq = shuffleTypesV3[shuffleType](eq, num)
+//   console.log(newEq)
+//   return buildEqV3(newEq, shuffles.slice(1))
+// }
 
 function modInv(a: number, m: number): number {
   let m0 = m;
@@ -78,12 +188,31 @@ const shuffleOrder = (
   .split(/\n/)
   .filter(Boolean)
 )
+
+// TESTING
+// it is important to note that the resulting equation will output the final position of the input
+// example:
+// eq(2019) => 5136; meaning card 2019 will move to position 5136
+//
+// eq(2019) absolutely does not indicate which card will end up at position 2019
+const initEq = { m: 1, b: 0, mod: 10007 }
+const builtEq = buildEqV2(initEq, shuffleOrder)
+console.log('builtEq', builtEq)
+// console.log(builtEq)
+// console.log((builtEq.m * 2019 + builtEq.b) % builtEq.mod)
+// console.log(showDeckV2(builtEq))
+// console.log('result', repeatShuffle(builtEq, 2))
+// console.log('check', buildEqV2(builtEq, shuffleOrder))
+console.log(repeatShuffle(builtEq, 2))
+console.log(composeEq(builtEq, builtEq))
+
 // console.log(showDeck(10, shuffleOrder))
 // console.log(handleShuffles(0, 10, shuffleOrder))
 
 // part1 test
-console.log(handleShuffles(2019, 10007, shuffleOrder))
-console.log(showDeck(10007, shuffleOrder)[5169])
+// WORKING
+// console.log(handleShuffles(2019, 10007, shuffleOrder))
+// console.log(showDeck(10007, shuffleOrder)[5169])
 
 // function buildEq(eq: Eq, shuffles: string[]) {
 //   const current = shuffles[0]
