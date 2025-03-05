@@ -1,82 +1,112 @@
-const shuffleTypes: { [key: string]: (cards: number[], num: number) => number[] } = {
-  'deal with increment': (cards, increment) => {
-    return cards.reduce(({ original, shuffled, count }) => {
-      const nextIndex = (increment * count) % original.length
-      shuffled[nextIndex] = original[count]
-      return {
-        original: original,
-        shuffled: shuffled,
-        count: count + 1
-      }
-    }, { original: cards, shuffled: [] as number[], count: 0 }).shuffled
-  },
-  'deal into new stack': (cards) => {
-    return cards.toReversed()
-  },
-  'cut': (cards, num) => {
-    return cards.slice(num).concat(cards.slice(0, num))
+// Guide: https://codeforces.com/blog/entry/72593
+
+type Eq = { m: bigint, b: bigint }
+// to represent y = (mx + b) % mod
+type Deck = Eq & { mod: bigint }
+type Shuffles = 'new stack' | 'cut' | 'increment'
+
+const shuffleTypes: Record<Shuffles, (n: bigint) => Eq> = {
+  'new stack': () => ({ m: -1n, b: -1n }),
+  'cut': (n) => ({ m: 1n, b: n * -1n }),
+  'increment': (n) => ({ m: n, b: 0n }),
+}
+
+// because javascript is a dumpster fire
+function mod(n: bigint, m: bigint) {
+  return ((n % m) + m) % m
+}
+
+function composeEq(f: Eq, g: Deck) {
+  // compose function such that result is f(g(x))
+  // where f is the current shuffle eq and g is the existing eq
+  //
+  // f(g(x))
+  // fm*g(x) + fb
+  // fm(gm + gb) + fb
+  // fm*gm + fm*gb + fb
+  //
+  // m = fm*gm
+  // b = fm*gb + fb
+  return {
+    m: mod(f.m * g.m, g.mod),
+    b: mod((f.m * g.b) + f.b, g.mod),
+    mod: g.mod
   }
 }
 
-function generateDeck(length: number) {
-  return Array(length).fill(0).map((_, i) => i)
+// apply shuffles by composing shuffle equations together to form a single equation
+function buildEq(eq: Deck, shuffles: string[]) {
+  const shuffle = shuffles[0]
+  if (!shuffle) return eq
+  const shuffleType = Object.keys(shuffleTypes).find(key => shuffle.includes(key)) as Shuffles
+  if (!shuffleType) throw Error(`cannot find shuffle type for: ${shuffle}`)
+  const [ num ] = shuffle.match(/-?\d+/)?.map(BigInt) || [ 0n ]
+  const newEq = composeEq(shuffleTypes[shuffleType](num), eq)
+  return buildEq(newEq, shuffles.slice(1))
 }
 
-const shuffleWithMath: { [key: string]: (eq: Equation, num: number) => Equation } = {
-  'deal with increment': (eq, num) => {
-    return {
-      ...eq,
-      m: (eq.m * num) % eq.deckSize
-    }
-  },
-  'deal into new stack': function dealIntoNewStack(eq: Equation): Equation {
-    const { b, deckSize } = eq;
-    return {
-      ...eq,
-      m: (eq.m * -1 + deckSize) % deckSize, // Ensure m stays within bounds
-      b: ((deckSize - 1 - b) + deckSize) % deckSize, // Adjust b for modular arithmetic
-    };
-  },
-  'cut': (eq, num) => {
-    return {
-      ...eq,
-      b: (eq.b - num + eq.deckSize) % eq.deckSize
-    }
-  }
+// binary exponentiation but with composing functions
+function repeatShuffle(
+  eq: Deck,
+  count: bigint,
+  g = { m: 1n, b: 0n, mod: eq.mod }
+) {
+  if (count === 0n) return g
+  return repeatShuffle(
+    composeEq(eq, eq),
+    count / 2n,
+    count % 2n ? composeEq(g, eq) : g,
+  )
 }
 
-// Modular multiplicative inverse function
-// Thanks chatGPT
-function modInverse(a: number, mod: number): number {
-  let m0 = mod, x0 = 0, x1 = 1;
-
-  if (mod === 1) return 0;
-
-  while (a > 1) {
-    const q = Math.floor(a / mod);
-    [a, mod] = [mod, a % mod];
-    [x0, x1] = [x1 - q * x0, x0];
-  }
-
-  return x1 < 0 ? x1 + m0 : x1;
+function getFinalPos(eq: Deck, startPos: bigint) {
+  // just plug in startPos for x in y = (mx + b) % mod
+  return mod(eq.m * startPos + eq.b, eq.mod)
 }
 
-// Function to print the deck
-// Thanks chatGPT
-function printDeck(eq: Equation): number[] {
-  const { m, b, deckSize } = eq;
-  const incrementInverse = modInverse(m, deckSize); // Modular inverse of the multiplier
-  const deck: number[] = Array.from({ length: deckSize }, (_, newIndex) => {
-    // Reverse mapping: calculate original index
-    return (incrementInverse * (newIndex - b + deckSize)) % deckSize;
-  });
-
-  return deck;
+function modPow(base: bigint, exp: bigint, mod: bigint, result = 1n) {
+  if (exp === 0n) return result
+  const isOdd = exp % 2n === 1n
+  return modPow(
+    (base * base) % mod,
+    exp / 2n,
+    mod,
+    isOdd ? (result * base) % mod : result,
+  )
 }
 
-// Equations should look something like this
-// ValueAtIndex = ((m * index) + b) % deckSize
-type Equation = { m: number, b: number, deckSize: number }
+function modInvFermat(m: bigint, mod: bigint) {
+  if (mod <= 1) throw Error('mod must be greater than 1')
+  return modPow(m, mod - 2n, mod)
+}
+
+function getFinalCard(eq: Deck, cardNum: bigint) {
+  // solve for x instead of for y
+  // y = (mx + b) % mod
+  // y - b = mx % mod
+  // x = ((y - b) / m) % mod
+  // x = (y - b) * modInv(m, mod)
+  const inv = modInvFermat(eq.m, eq.mod)
+  return mod(((cardNum - eq.b) * inv), eq.mod)
+}
+
+function solvePart1(pos: bigint, deckSize: bigint, shuffles: string[]) {
+  const initEq = { m: 1n, b: 0n, mod: deckSize }
+  const shuffledEq = buildEq(initEq, shuffles)
+  return getFinalPos(shuffledEq, pos)
+}
+
+function solvePart2(
+  pos: bigint,
+  deckSize: bigint,
+  shuffleCount: bigint,
+  shuffles: string[]
+) {
+  const initEq = { m: 1n, b: 0n, mod: deckSize }
+  const shuffleEq = buildEq(initEq, shuffles)
+  const multiShuffleEq = repeatShuffle(shuffleEq, shuffleCount)
+  return getFinalCard(multiShuffleEq, pos)
+}
 
 const shuffleOrder = (
   (await Bun.file(process.argv[2]).text())
@@ -84,56 +114,17 @@ const shuffleOrder = (
   .filter(Boolean)
 )
 
-const deckSize = process.argv[2].includes('example') ? 10 : 10007
-const initEq = { m: 1, b: 0, deckSize: 10 }
+// it is important to note that the resulting equation will output the final position of the input (starting card/position)
+//  - eq(2019) => 5136; meaning card 2019 will move to position 5136
+//  - eq(2019) absolutely does not indicate which card will end up at position 2019
 
-const shuffledCards = shuffleOrder.reduce((cards, shuffleType) => {
-  const [ _, type, num ] = shuffleType.match(/^(.*?)(?: (-?\d+))?$/)!
-  // console.log(shuffleTypes[type](cards, Number(num)))
-  return shuffleTypes[type](cards, Number(num))
-}, generateDeck(deckSize))
+const part1 = solvePart1(2019n, 10007n, shuffleOrder)
+console.log(part1, [ 5169n ].includes(part1))
 
-const buildEq = shuffleOrder.reduce((eq, shuffleType) => {
-  const [ _, type, num ] = shuffleType.match(/^(.*?)(?: (-?\d+))?$/)!
-  // console.log(shuffleTypes[type](cards, Number(num)))
-  return shuffleWithMath[type](eq , Number(num))
-}, initEq)
-
-const doubler = shuffleOrder.reduce((outputs, shuffleType) => {
-  const [ _, type, num ] = shuffleType.match(/^(.*?)(?: (-?\d+))?$/)!
-  console.log('OLD EQ', outputs.eq)
-  const deck = shuffleTypes[type](outputs.deck, Number(num))
-  const nextEq = shuffleWithMath[type](outputs.eq, Number(num))
-  const eq = {
-    ...nextEq,
-    m: nextEq.m % nextEq.deckSize,
-    b: nextEq.b % nextEq.deckSize,
-  }
-  console.log(shuffleType)
-  console.log(deck)
-  console.log(printDeck(eq))
-  return { deck, eq }
-}, { deck: generateDeck(deckSize), eq: initEq })
-
-const part1 = shuffledCards.findIndex(num => num === 2019)
-console.log(part1, [ 5169 ].includes(part1))
-
-// console.log('TESTING')
-// console.log(printDeck(buildEq))
-// const testDeck = generateDeck(10)
-// console.log(shuffleTypes['deal with increment'](testDeck, 3))
-
-// // TEST INCREMENT
-// const newEq = shuffleWithMath['deal with increment'](initEq, 3)
-// console.log(newEq)
-// console.log(printDeck(newEq))
-// 
-// // TEST REVERSAL
-// const newEq2 = shuffleWithMath['deal into new stack'](initEq, 3)
-// console.log(newEq2)
-// console.log(printDeck(newEq2))
-// 
-// // TEST CUT
-// const newEq3 = shuffleWithMath['cut'](initEq, 3)
-// console.log(newEq3)
-// console.log(printDeck(newEq3))
+const part2 = solvePart2(
+  2020n,
+  119315717514047n,
+  101741582076661n,
+  shuffleOrder
+)
+console.log(part2, [ 74258074061935n ].includes(part2))
